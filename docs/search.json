@@ -12,5 +12,110 @@
     "title": "1  The Golem of Prague",
     "section": "",
     "text": "message(\"There is no practice for this chapter.\")\n\nThere is no practice for this chapter."
+  },
+  {
+    "objectID": "ch02_worlds.html",
+    "href": "ch02_worlds.html",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "",
+    "text": "\\(Pr(rain \\mid Monday)\\) and \\(\\frac{Pr(rain, Monday)}{Pr(Monday)}\\)"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2E2",
+    "href": "ch02_worlds.html#prac2E2",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2E2",
+    "text": "2E2\nProb that it is Monday, given it is raining"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2E3",
+    "href": "ch02_worlds.html#prac2E3",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2E3",
+    "text": "2E3\n\\(Pr(Monday \\mid rain)\\) and \\(\\frac{Pr(rain \\mid Monday)Pr(Monday)}{Pr(rain)}\\)"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2E4",
+    "href": "ch02_worlds.html#prac2E4",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2E4",
+    "text": "2E4\nBased on what we observe small world, the earth, we conjecture that water occupies 70% of the space."
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2M1",
+    "href": "ch02_worlds.html#prac2M1",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2M1",
+    "text": "2M1\nCreating the function to compute the grid\n\n# function to calculate the posterior grid as per 2M1\ncalc_post_water <- function(obs, grid_size, label) {\n    \n    # Parameters:\n    # obs: Character vector of observation with W and L\n    # grid_size: Number of grid elements\n    # label: String to identify the data, used later to plot\n\n    # convert to boolean values\n    obs <- obs == \"W\"\n    \n    # create a grid of possible values for the parameter p\n    param_grid <- seq(from = 0, to = 1, length.out = grid_size)\n    \n    # the prior is uniformely distributed\n    prior_grid <- dunif(x = param_grid, min = 0, max = 1)\n    \n    # the likelihood is binomial\n    like_grid <- dbinom(x = sum(obs), \n                        size = length(obs), \n                        prob = param_grid)\n    \n    # compute the posterior\n    post_grid <-  like_grid * prior_grid\n    # standardize the posterior by dividing by the sum of its possible values\n    post_grid <- post_grid / sum(post_grid)\n    # add param grid and build a dataframe\n    post_grid <- data.frame(param = param_grid, \n                            post = post_grid,\n                            label = rep(label, times = grid_size),\n                            stringsAsFactors = FALSE)\n    \n    return(post_grid)\n        \n}\n\n\n2M1 (1)\nCompute the grid for the given data using the function defined just abov\n\npost_grid_1 <- calc_post_water(c(\"W\", \"W\", \"W\"), 10, \"(1)\")\npost_grid_1\n\n       param         post label\n1  0.0000000 0.0000000000   (1)\n2  0.1111111 0.0004938272   (1)\n3  0.2222222 0.0039506173   (1)\n4  0.3333333 0.0133333333   (1)\n5  0.4444444 0.0316049383   (1)\n6  0.5555556 0.0617283951   (1)\n7  0.6666667 0.1066666667   (1)\n8  0.7777778 0.1693827160   (1)\n9  0.8888889 0.2528395062   (1)\n10 1.0000000 0.3600000000   (1)\n\n\n\n\n2M1 (2)\n\npost_grid_2 <- calc_post_water(c(\"W\", \"W\", \"W\", \"L\"), 10, \"(2)\")\n\n\n\n2M1 (3)\n\npost_grid_3 <- calc_post_water(c(\"L\", \"W\", \"W\", \"L\", \"W\", \"W\", \"W\"), 10, \"(3)\")\n\n\n\nplot\nAnd visualize the results\n\npd <- rbind(post_grid_1, post_grid_2, post_grid_3)  # data for graph\np2M1 <- ggplot(data = pd, mapping = aes(x = param, y = post, color = label)) +\n    geom_point(size = 3) + geom_line() +\n    scale_color_paletteer_d(palette = \"futurevisions::atomic_orange\") +\n    theme_classic() +\n    theme(plot.title = element_text(color = \"dark blue\", hjust = 0.5),\n          legend.position = c(0.1, 0.85)) +\n    labs(title = \"Exercise 2M1\", x = \"parameter p\", y = \"posterior prob\")\np2M1"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2M2",
+    "href": "ch02_worlds.html#prac2M2",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2M2",
+    "text": "2M2\nSee R code 2.5 in for example of such a prior.\n\n# function to calculate the posterior grid as per 2M1\ncalc_post_water <- function(obs, grid_size, label) {\n    \n    # Parameters:\n    # obs: Character vector of observation with W and L\n    # grid_size: Number of grid elements\n    # label: String to identify the data, used later to plot\n    \n    # convert to boolean values\n    obs <- obs == \"W\"\n    \n    # create a grid of possible values for the parameter p\n    param_grid <- seq(from = 0, to = 1, length.out = grid_size)\n    \n    # the prior is uniformely distributed\n    prior_grid <- ifelse(param_grid >= 0.5, 0.1, 0)\n    \n    # the likelihood is binomial\n    like_grid <- dbinom(x = sum(obs), \n                        size = length(obs), \n                        prob = param_grid)\n    \n    # compute the posterior\n    post_grid <-  like_grid * prior_grid\n    # standardize the posterior by dividing by the sum of its possible values\n    post_grid <- post_grid / sum(post_grid)\n    # add param grid and build a dataframe\n    post_grid <- data.frame(param = param_grid, \n                            post = post_grid,\n                            label = rep(label, times = grid_size),\n                            stringsAsFactors = FALSE)\n    \n    return(post_grid)\n}\n\n\n2M2 (1)\nCompute the grid for the given data using the function defined just abov\n\npost_grid_1 <- calc_post_water(c(\"W\", \"W\", \"W\"), 10, \"(1)\")\npost_grid_1\n\n       param       post label\n1  0.0000000 0.00000000   (1)\n2  0.1111111 0.00000000   (1)\n3  0.2222222 0.00000000   (1)\n4  0.3333333 0.00000000   (1)\n5  0.4444444 0.00000000   (1)\n6  0.5555556 0.06493506   (1)\n7  0.6666667 0.11220779   (1)\n8  0.7777778 0.17818182   (1)\n9  0.8888889 0.26597403   (1)\n10 1.0000000 0.37870130   (1)\n\n\n\n\n2M2 (2)\n\npost_grid_2 <- calc_post_water(c(\"W\", \"W\", \"W\", \"L\"), 10, \"(2)\")\n\n\n\n2M2 (3)\n\npost_grid_3 <- calc_post_water(c(\"L\", \"W\", \"W\", \"L\", \"W\", \"W\", \"W\"), 10, \"(3)\")\n\n\n\n2M2 plot\nAnd visualize the results\n\npd <- rbind(post_grid_1, post_grid_2, post_grid_3)  # data for graph\np2M2 <- ggplot(data = pd, mapping = aes(x = param, y = post, color = label)) +\n    geom_point(size = 3) + geom_line() +\n    scale_color_paletteer_d(palette = \"futurevisions::atomic_red\") +\n    theme_classic() +\n    theme(plot.title = element_text(color = \"dark blue\", hjust = 0.5),\n          legend.position = c(0.1, 0.85)) +\n    labs(title = \"Exercise 2M2\", x = \"parameter p\", y = \"posterior prob\")\np2M2"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2M3",
+    "href": "ch02_worlds.html#prac2M3",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2M3",
+    "text": "2M3\nWe first need to formulate the probabilites\n\\[\n\\begin{equation}\nP(Earth \\mid Land) = \\\\\n\\frac{P(Earth, Land)}{P(Land)} = \\\\\n\\frac{P(Land \\mid Earth) \\cdot P(Earth)}{P(Land)} = \\\\\n\\frac{P(Land \\mid Earth) \\cdot P(Earth)}\n{P(Land \\mid Earth) \\cdot P(Earth) + P(Land \\mid Mars) \\cdot P(Mars)}\n\\end{equation}\n\\]\n\nprob_earth <- 0.5\nprob_mars <- 1 - prob_earth\nprob_water_earth <- 0.7\nprob_water_mars <- 0\nprob_land_earth <- 1 - prob_water_earth\nprob_land_mars <- 1 - prob_water_mars\n\n# Pr(Earth | Land) = Pr(Earth, Land) / Pr(Land) = Pr(Land | Earth) * P(Earth) / Pr(Land) =\n# Pr(Land | Earth) * P(Earth) / (Pr(Land | Earth) * Pr(Earth) + Pr(Land | Mars) * Pr(Mars))\n(prob_land_earth * prob_earth) / \n    (prob_land_earth * prob_earth + prob_land_mars * prob_mars)\n\n[1] 0.2307692"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2M4",
+    "href": "ch02_worlds.html#prac2M4",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2M4",
+    "text": "2M4\nWe have the random variables\n\\(F\\): Represent the face that we see.\n\n\\(F=b\\): We see the black side.\n\\(F=w\\): We see the white face.\n\n\\(H\\): Represent the face that we don’t see, the hidden face.\n\n\\(H=b\\): The hidden side is black.\n\\(H=w\\): The hidden side is white.\n\nThe probabilities of \\(F\\) are \\(P(F=b) = P(F=w) = 0.5\\)\n\\(C=i\\): Represents the card # i that we pick with the following values\n\n\\(C=1\\): we pick card 1 which is black & black, notation\n\\(C=2\\): we pick card 2 which is black & white\n\\(C=3\\): we pick card 3 which is white & white\n\nand the pdf of \\(C\\) is\n\n\n\nCard\nProbability\n\n\n\n\n\\(C=1\\)\n\\(\\frac{1}{3}\\)\n\n\n\\(C=2\\)\n\\(\\frac{1}{3}\\)\n\n\n\\(C=3\\)\n\\(\\frac{1}{3}\\)\n\n\n\n\\[\nP(H=b \\mid F=b) = \\frac{P(H=b,F=b)}{P(F=b)} = \\frac{P(C=1)}{P(F=b)}= \\\\\n\\frac{P(C=1)}{P(F=b \\mid C=1)P(C=1) + P(F=b \\mid C=2)P(C=2) + P(F=b \\mid C=3)P(C=3)} \\\\\n\\frac{\\frac{1}{3}}{1 \\cdot \\frac{1}{3} + 0.5 \\cdot \\frac{1}{3} + 0 \\cdot \\frac{1}{3}} = \\frac{2}{3} \\approx 0.67\n\\]"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2M5",
+    "href": "ch02_worlds.html#prac2M5",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2M5",
+    "text": "2M5\nUsing the same convention as in 2M4 and given that\n\n\n\nCard\nProbability\n\n\n\n\n\\(C=1\\)\n\\(\\frac{2}{4}\\)\n\n\n\\(C=2\\)\n\\(\\frac{1}{4}\\)\n\n\n\\(C=3\\)\n\\(\\frac{1}{4}\\)\n\n\n\nthen, same as in 2M4 but with different probabilities,\n\\[\n\\frac{\\frac{2}{4}}{1 \\cdot \\frac{2}{4} + 0.5 \\cdot \\frac{1}{4} + 0 \\cdot \\frac{1}{4}} = \\frac{4}{5}=0.8\n\\]"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2M6",
+    "href": "ch02_worlds.html#prac2M6",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2M6",
+    "text": "2M6\n\n\n\nCard\nProbability\n\n\n\n\n\\(C=1\\)\n\\(\\frac{1}{6}\\)\n\n\n\\(C=2\\)\n\\(\\frac{2}{6}\\)\n\n\n\\(C=3\\)\n\\(\\frac{3}{6}\\)\n\n\n\nthen, same as in 2M4 but with different probabilities,\n\\[\n\\frac{\\frac{1}{6}}{1 \\cdot \\frac{1}{6} + 0.5 \\cdot \\frac{2}{6} + 0 \\cdot \\frac{3}{6}} = \\frac{1}{2}\n\\]"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2M7",
+    "href": "ch02_worlds.html#prac2M7",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2M7",
+    "text": "2M7\n\\(C_i\\): The card chosen in the \\(i\\) pick \\(F_i\\): The face on the \\(i\\) pick \\(H_i\\): The hidden face of the card on the \\(i\\) pich\nThe joint probability table is\n\n\n\n\n\n\n\n\n\n\n\n\n\n\\(C_1\\)\n\\(C_2\\)\n\\(F_1\\)\n\\(H_1\\)\n\\(F_2\\)\n\\(H_2\\)\nfreq\nprob\n\n\n\n\n1\n2\nb\nb\nb\nw\n2\n\\(\\frac{2}{24}\\)\n\n\n1\n2\nb\nb\nw\nb\n2\n\\(\\frac{2}{24}\\)\n\n\n1\n3\nb\nb\nw\nw\n4\n\\(\\frac{4}{24}\\)\n\n\n2\n1\nb\nw\nb\nb\n2\n\\(\\frac{2}{24}\\)\n\n\n2\n1\nw\nb\nb\nb\n2\n\\(\\frac{2}{24}\\)\n\n\n2\n3\nb\nw\nw\nw\n2\n\\(\\frac{2}{24}\\)\n\n\n2\n3\nw\nb\nw\nw\n2\n\\(\\frac{2}{24}\\)\n\n\n3\n1\nw\nw\nb\nb\n4\n\\(\\frac{4}{24}\\)\n\n\n3\n2\nw\nw\nb\nw\n2\n\\(\\frac{2}{24}\\)\n\n\n3\n2\nw\nw\nw\nb\n2\n\\(\\frac{2}{24}\\)\n\n\n\nand using probabilities we have\n\\[\nP(H_1 = b \\mid F_1 = b, F_2 = w) = \\\\\n\\frac{P(H_1 = b, F_1 = b, F_2 = w)}{P(F_1=b, F_2=w)} = \\\\\n\\frac{P(F_2 = w, C_1 = 1)}{P(F_1=b,F_2=w,H_1=b)+P(F_1=b,F_2=w,H_1=w)} =\\\\\n\\frac{P(F_2 = w, C_1 = 1)}\n{P(F_2=w,C_1=1)+P(F_1=b,F_2=w,H_1=w)} =\\\\\n\\frac{\\frac{2}{24} +\\frac{4}{24}}\n{\\frac{2}{24} + \\frac{4}{24} + \\frac{2}{24}}=\\frac{3}{4}=0.75\n\\]"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2H1",
+    "href": "ch02_worlds.html#prac2H1",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2H1",
+    "text": "2H1\nWe use \\(A,B\\) to identify the species.\nWe use \\(T_i=1,0\\) to identify if birth at time \\(i\\) is twin \\(T_i=1\\) or singleton \\(T_i=0\\)\nwe have\n\\[\nP(T_i=1 \\mid A)=0.1 \\\\\nP(T_i=1 \\mid B)=0.2\n\\]\nWe need to find \\(P(B_2=t \\mid B_1=t)\\) therefore\n$$ P(T_2=1 T_1=1)=\\ =\\ =\\ == \n$$"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2H2",
+    "href": "ch02_worlds.html#prac2H2",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2H2",
+    "text": "2H2\n\\[\nP(A \\mid T_1 = 1) = \\frac{P(A, T_1=1)}{P(T_1=1)} = \\\\\n\\frac{P(T_1=1 \\mid A)P(A)}{P(T_1=1 \\mid A)P(A) + P(T_1=1 \\mid B)P(B)} = \\\\\n\\frac{0.1 \\cdot 0.5}{0.1 \\cdot 0.5 + 0.2 \\cdot 0.5} = \\frac{1}{3} \\approx 0.33\n\\]"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2H3",
+    "href": "ch02_worlds.html#prac2H3",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2H3",
+    "text": "2H3\nsince \\(T_i\\) are independent then\n\\[\nP(A \\mid T_1 = 1, T_2 =0)=\\\\\n\\frac{P(A,T_1=1,T_2=0)}{P(T_1=1,T_2=0)}=\\\\\n\\frac{P(T_1=1, T_2=0 \\mid A)P(A)}{P(T_1=1,T_2=0\\mid A)P(A) + P(T_1=1,T_2=0\\mid B)P(B)}=\\\\\n\\frac{0.1 \\times 0.9 \\times 0.5}{(0.1 \\times 0.9 \\times 0.5) + (0.2 \\times 0.8 \\times 0.5)} =\n\\frac{0.045}{0.045+0.08}=\\frac{9}{25}=0.36\n\\]"
+  },
+  {
+    "objectID": "ch02_worlds.html#prac2H4",
+    "href": "ch02_worlds.html#prac2H4",
+    "title": "2  Small Worlds and Large Worlds",
+    "section": "2H4",
+    "text": "2H4\nThe new genetic test, called \\(G=a,b\\) when it identifies species A or B with a and b.\n\\[\nP(G=a \\mid A) = 0.8 \\\\\nP(G=b \\mid B) = 0.65 \\\\\nP(G=a \\mid B) = 1- P(G=b \\mid B) = 1-0.65=0.35\n\\]\nUsing the existing prior on the population of bear \\(P(S=a)=(S=b)=0.5\\)\n\\[\nP(A | G=a)=\\\\\n\\frac{P(G=a \\mid A) P(A)}{P(G=a)}=\\\\\n\\frac{P(G=a \\mid A) P(A)}{P(G=a \\mid A)P(A) + P(G=a \\mid B)P(B)} = \\\\\n\\frac{0.8 \\cdot 0.5}{0.8 \\cdot 0.5 + (1-0.65) \\cdot 0.5} = \\frac{0.45}{0.45+0.325}=\\frac{18}{25} = 0.72\n\\]\nWhich means that our prior of \\(P(A)=0.5\\) has been changed to \\(0.72\\) once we use the genetic test and therefore a better identification.\nSimilarly we will use the prior without genetic test in exercise 2H3 just above which had found \\(P(A') = P(A \\mid T_1 = 1, T_2 =0)=0.36\\) and use the genetic test as a new prior \\(P(A' \\mid G=a)\\)\n\\[\nP(A' \\mid G=a) = \\\\\n\\frac{P(G=a \\mid A')P(A')}{P(G=a \\mid A')P(A') + P(G=a \\mid B')P(B')} \\\\\n\\frac{0.8 \\cdot 0.36}{0.8 \\cdot 0.36 + 0.35 \\cdot (1-0.36)} \\approx 0.56\n\\]"
   }
 ]
