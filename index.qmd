@@ -1,9 +1,14 @@
-# Preface {.unnumbered}
+# Introduction {.unnumbered}
 
-This is a Quarto book.
 
-To learn more about Quarto books visit <https://quarto.org/docs/books>.
+```{r setup}
+#| include: false
+library(rethinking)
+```
+
+## Session info {.unnumbered}
 
 ```{r}
-1 + 1
+sessioninfo::session_info()
 ```
+
