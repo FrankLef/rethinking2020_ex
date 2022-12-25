@@ -10,6 +10,8 @@ book:
     - index.qmd
     - ch01_golem.qmd
     - ch02_worlds.qmd
+    - ch03_sampling.qmd
+    - ch04_linear.qmd
     - references.qmd
 
 bibliography: references.bib

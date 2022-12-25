@@ -7,6 +7,7 @@ library(rethinking)
 library(brms)
 library(dplyr)
 library(tidyr)
+library(ggplot2)
 library(ggdist)
 library(paletteer)
 ```

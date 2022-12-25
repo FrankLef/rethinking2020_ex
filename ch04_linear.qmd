@@ -1,0 +1,2154 @@
+
+# Linear Models {#linear}
+
+```{r}
+#| include: false
+library(rethinking)
+library(brms)
+library(dplyr)
+library(tidyr)
+library(tidybayes)
+library(tidybayes.rethinking)
+library(posterior)
+library(modelr)
+library(simstudy)
+library(ggplot2)
+library(ggdist)
+library(patchwork)
+library(paletteer)
+library(gt)
+library(splines)
+```
+
+
+## Notes {.unnumbered}
+
+### `eflINLA` {.unnumbered}
+
+The `INLA` has its own object and conventions. The `eflINLA` is a project to develop functions mimicking `tidybayes` with `inla` objects. These are **not S3 methods** and they will be identified with the suffix `inla`, for example the `tidy_draws` equivalent is `tidy_draws_inla`.
+
+You can see the code behind each function by selecting it and pressing `F2`.
+
+## 4E1 {#prac4E1 .unnumbered}
+
+See section 4.4.1 in @elreath2020
+
+$y_i \sim \mathcal{N}(\mu, \sigma)$
+
+## 4E2 {#prac4E2 .unnumbered}
+
+2 parameters, $\mu$ and $\sigma$ which are in the posterior distribution $y_i \sim \mathcal{N}(\mu, \sigma)$
+
+## 4E3 {#prac4E3 .unnumbered}
+
+See Overthinking in section 4.3.1
+
+\$\$ \begin{align*}
+P(\mu, \sigma \mid \textbf{y}) &=
+
+\frac{
+    P(\textbf{y}, \mu, \sigma)
+}{
+    P(\textbf{y})
+} \\
+
+&= \frac{
+    P(\textbf{y}, \mu, \sigma)
+}{
+    \int_{\sigma} \int_{\mu} P(\textbf{y} \mid \mu, \sigma) \cdot P(\mu, \sigma) d\mu d\sigma \\
+} \\
+
+&= 
+
+\frac{
+    \prod_i P(y_i, \mu, \sigma)
+}{
+    \int_{\sigma} \int_{\mu} \prod_i P(y_i \mid \mu, \sigma) \cdot P(\mu, \sigma) d\mu d\sigma \\
+} \\
+
+&=
+
+\frac{
+    \prod_i P(y_i \mid \mu, \sigma) \cdot P(\mu) \cdot P(\sigma)
+}{
+    \int_{\sigma} \int_{\mu} \prod_i P(y_i \mid \mu, \sigma) \cdot P(\mu) \cdot P(\sigma) d\mu d\sigma \\
+} \\
+
+&=
+
+\frac{
+    \prod_i \mathcal{N}(y_i \mid \mu, \sigma) \cdot \mathcal{N}(\mu \mid mean = 0, sd = 10) \cdot \mathcal{Exp}(\sigma \mid rate = 1)
+}{
+    \int_{\sigma} \int_{\mu}{
+        \prod_{i=1}^n \mathcal{N}(y_i \mid \mu, \sigma) \cdot \mathcal{N}(\mu \mid mean = 0, sd = 10) \cdot \mathcal{Exp}(\sigma \mid rate = 1)
+    }
+    d\mu d\sigma
+}
+
+\end{align*} \$\$
+
+## 4E4 {#prac4E4 .unnumbered}
+
+$\mu_i = \alpha + \beta x_i$
+
+## 4E5 {#prac4E5 .unnumbered}
+
+2 parameters, $\mu$ and $\sigma$
+
+## 4M1 {#prac4M1 .unnumbered}
+
+See R code 4.13 in section 4.3.2 using this model.
+
+We use the `simstudy` package to do the simulation. It is a wonderful tools to 
+simulate models and will be used repeatedly in this project.
+
+Also we use the `posterior` package to use the many tools this package offers 
+to simplify using posterior samples.
+
+```{r}
+sim04M01 <- list()
+sim04M01 <- within(sim4M1, {
+  def <- defData(varname = "mu", dist = "normal", formula = 0, variance = 10^2)
+  def <- defData(def, varname = "sigma", dist = "exponential", formula = 1)
+  def <- defData(def, varname = "height", dist = "normal", formula = "mu", 
+               variance = "sigma")
+  # generate the data
+  set.seed(4)
+  data <- genData(n = 5000, dtDefs = def)
+  
+  # get the intervals
+  widths <- c(0.67, 0.95, 1)
+  intr <- data |>
+    select(-id) |>
+    pivot_longer(cols = everything()) |>
+    group_by(name) |>
+    ggdist::median_qi(.width = widths)
+  
+  # the breaks used for the x axis
+  breaks_x <- intr |>
+    filter(name == "height") |>
+    select(.lower, value, .upper) |>
+    pivot_longer(cols = everything()) |>
+    arrange(value) |>
+    pull(value)
+  })
+```
+
+```{r}
+ggplot(sim04M01$data, mapping = aes(x = height)) +
+  ggdist::stat_halfeye(aes(fill = stat(cut_cdf_qi(cdf, .width = sim04M01$widths))),
+                       point_interval = median_qi,
+                       color = "darkorange") +
+  scale_x_continuous(breaks = sim04M01$breaks_x,
+                     labels = scales::label_number(accuracy = 0.1)) +
+  scale_fill_paletteer_d("ggsci::indigo_material",
+                         direction = 1,
+                         name = "levels %",
+                         labels = round(100 * sim04M01$widths, 0),
+                         na.translate = FALSE) +
+  theme_ggdist() +
+  theme(legend.position = c(0.8, 0.8),
+        title = element_text(color = "midnightblue")) +
+  labs(title = "4M1: Prior prediction of height", 
+       subtitle = sprintf("sample size = %d", nrow(sim04M01$data)))
+```
+
+## 4M2 {#prac4M2 .unnumbered}
+
+See section 4.4.2 on how to use `quap`, R code 4.43 with linear equation with the `quap` formula, i.e. `flist = alist(...)`.
+
+```{r eval=FALSE}
+alist(
+    height ~ dnorm(mean = mu, sd = sigma),
+    mu = a + b * x,
+    a ~ dnorm(mean = 0, sd = 10),
+    b ~ dnorm(mean = 0, sd = 1),
+    sigma ~ dexp(rate = 1)
+    )
+```
+
+## 4M3 {#prac4M3 .unnumbered}
+
+Make sure you remember to index the $y$ so that it is $y_i$ as well as $\mu$. See section 4.4.2. The published answer does not put an index on $\mu$ but it has one on $y$ which involves a constant $\mu$ which is normally the intercept! This question is confusing, here we assume the same meaning as in section 4.4.2., that is $\mu$ varies for each $x_i$
+
+$$
+\begin{align*}
+y_i &\sim \mathcal{N}(mean = \mu_i, sd = \sigma)\\
+\mu_i &= \alpha + \beta x_i \\
+\alpha &\sim \mathcal{N}(mean = 0, sd = 10) \\
+\beta &\sim \mathcal{Uniform}(mean = 0, sd = 1) \\
+\sigma &\sim \mathcal{Exponential}(\lambda = 1)
+\end{align*}
+$$
+
+## 4M4 {#prac4M4 .unnumbered}
+
+Don't forget the index so that $height$ is $height_i$.
+
+This will be giving the average height per year. The question is not clear that it wants it by student also.
+
+$$
+\begin{align*}
+height_i &\sim \mathcal{N}(\mu_i, \sigma) \\
+\mu_i &= \alpha + \beta \cdot year_i \\
+\alpha &\sim \mathcal{N}(100, 10) \\
+\beta &\sim \mathcal{Uniform}(0, 10) \\
+\sigma &\sim \mathcal{Exponential}(1)
+\end{align*}
+$$
+
+The choice of priors are \* $\alpha$: The intercept reflect the population average which is 100 and we expect the 95% of the population to be between 80 and 120 at the very most \* $\beta$: The coefficient should be nonnegative as the height should increase or stay the same in younger age. We choose uniform distribution as we have no information whatsoever about the rate of growth. \* $\sigma$: The overall outcome variance should be positive with a skewed distribution, hence using $\mathcal{Exponential}(1)$. See p. 118 and p. 119 on using the exponential distribution in the textbook.
+
+## 4M5 {#prac4M5 .unnumbered}
+
+This tells us that $\beta$ should always be positive be with large values unlikely. We therefore use the log-normal dist as a prior for $\beta$. See section 4.4.2.
+
+$$
+\begin{align*}
+height_i &\sim Normal(\mu_i, \sigma) \\
+\mu_i &= \alpha + \beta \cdot year_i \\
+\alpha &\sim \mathcal{Normal}(100, 10) \\
+\beta &\sim \mathcal{LogNormal}(0, 1) \\
+\sigma &\sim \mathcal{Exponential}(1)
+\end{align*}
+$$
+
+## 4M6 {#prac4M6 .unnumbered}
+
+Instead of using the average range as a prior for $\sigma$ we would use $\sigma = \sqrt{64} = 8$.
+
+> In the official solution solution McElreath says it should be $\sigma \sim Uniform(0, 64)$, no sqrt of the *variance* to obtain the *standard deviation* is done.
+
+$$
+height_i \sim Normal(\mu_i, \sigma) \\
+mu_i = \alpha + \beta \cdot year_i \\
+\alpha \sim Normal(120, 10) \\
+\beta \sim Normal(0, 10) \\
+\sigma \sim Uniform(0, 8)
+$$
+
+## 4M7 {#prac4M7 .unnumbered}
+
+See section 4.4.2 for model m4.3. We add the centered weight to the data and call it $weight_c$.
+
+```{r}
+data(Howell1)
+data04M07 <- Howell1 %>%
+  filter(age  >= 18) %>%
+  mutate(weight_c = as.vector(scale(weight, center = TRUE, scale = FALSE)))
+rm(Howell1)
+skimr::skim(data04M07)
+```
+
+### Model {#prac4M7-Model .unnumbered}
+
+$$
+\begin{align*}
+height_i &\sim \mathcal{N}(\mu_i, \sigma) \\
+\mu_i &= \alpha + \beta(x_i - \bar{x}) \\
+\alpha &\sim \mathcal{N}(178, 20) \\
+\beta &\sim \mathcal{LogNormal}(0, 1) \\
+\sigma &\sim \mathcal{Exp}(1)
+\end{align*}
+$$
+
+### Fitting strategies {.unnumbered}
+
+This practice is used to illustrate 3 different methods that can be used to fit the model to the data. They are from the package `rethinking` (of course), the very well-known package `brms` that is used in @kurtz2020a and the package `INLA` which state of the art and is explained, for example, by @gomez2020 and @wang2018.
+
+The package `tidybayes` is used to harmonize the different commands and demonstrate that the process is the same. Since there is no tidybayes command for `INLA`, similar functions are coded in the `eflINLA` package.
+
+The package `posterior` is used to harmonize the results from these 3 types of fit.
+
+### Priors {#prac4M7-Priors .unnumbered}
+
+We simulate the priors using the specifications from the model. The lognormal distribution is not available in `simstudy`. The solution is to create a custom (nonrandom) distribution as demonstrated in [lognormal](https://githubmemory.com/repo/kgoldfeld/simstudy/issues/99). However this gives me an error message, so instead, beta is exponentiated in `mu`'s formula.
+
+```{r}
+sim04M07 <- list()
+sim04M07 <- within(sim04M07, {
+  xrng <- paste(round(range(data04M07$weight_c)), collapse = ";")
+  def <- defData(varname = "x", dist = "uniform", formula = xrng)
+  def <- defData(def, varname = "alpha", formula = 178, variance = 20^2)
+  def <- defData(def, varname = "beta", formula = 0, variance = 1^2)
+  def <- defData(def, varname = "sigma", dist = "exponential", formula = 1)
+  forml <- "alpha + exp(beta) *x"  # convert beta to exp since it is lognormal dist
+  def <- defData(def, varname = "mu", dist = "nonrandom", formula = forml)
+  def <- defData(def, varname = "height", formula = "mu", variance = "sigma")
+  
+  set.seed(997)
+  data <- genData(n = 1000, dtDefs = def)
+  
+  # stats used for vertical lines by the plot
+  vlines <- data.frame(
+    model = c("prior", "observed"),
+    mode = c(ggdist::Mode(data$height), ggdist::Mode(data04M07$height)))
+})
+```
+
+
+
+```{r}
+ggplot(sim04M07$data) +
+  geom_density(aes(x = height, y = ..scaled.., color = "prior"),
+               size = 1, alpha = 0.8) +
+  geom_density(data = data04M07, aes(x = height, y = ..scaled.., color = "observed"),
+               size = 1, alpha = 0.8) +
+  geom_vline(data = sim04M07$vlines, mapping = aes(xintercept = mode, color = model),
+             linetype = "dashed") +
+  scale_color_manual(values = c("prior" = "mediumvioletred", 
+                                "observed" = "mediumseagreen")) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7)) +
+  coord_cartesian(xlim = c(50, 300)) +
+  ggdist::theme_ggdist() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = c(0.8, 0.8)) +
+  labs(title = paste0(
+    "4M7: Comparing prior predictive distribution vs observed distribution",
+    "\n", "vertical lines = mode"),
+    x = "height", y = NULL, color = NULL)
+```
+
+The prior is reasonable as it reflects an opinion on the overall general population.
+
+### Using `quap` {.unnumbered}
+
+#### Fits {.unnumbered}
+
+The fit using the centered, model m4.3 in textbook.
+
+
+```{r ch04_m04_07ctr}
+tictoc::tic(msg = sprintf("run time of %s, use the cache.", "1 secs."))
+m04M07ctr <- xfun::cache_rds({
+  quap(
+    flist = alist(
+      height ~ dnorm(mu, sigma),
+      mu <- a + b * weight_c,
+      a ~ dnorm(178, 20),
+      b ~ dlnorm(0, 1),
+      sigma ~ dunif(0, 50)
+      ),
+    data = data04M07,
+    start = list(a = mean(data04M07$weight), b = 0.5)
+    )},
+  file = "ch04_m04_07ctr")
+tictoc::toc()
+```
+
+and the summary is
+
+```{r}
+precis(m04M07ctr)[, 1:2]
+class(m04M07ctr)
+```
+
+The fit using the predictor on the natural scale
+
+```{r ch04_m04_07nat}
+tictoc::tic(msg = sprintf("run time of %s, use the cache.", "1 secs."))
+m04M07nat <- xfun::cache_rds({
+  quap(
+    flist = alist(
+      height ~ dnorm(mu, sigma),
+      mu <- a + b * weight,
+      a ~ dnorm(178, 20),
+      b ~ dlnorm(0, 1),
+      sigma ~ dunif(0, 50)
+      ),
+    data = data04M07,
+    start = list(a = mean(data04M07$weight), b = 0.5)
+    )},
+  file = "ch04_m04_07nat")
+tictoc::toc()
+precis(m04M07nat)[, 1:2]
+```
+
+#### Covariances {.unnumbered}
+
+The parameter `corr = TRUE` does not seem to work in `precis` so we use the var-cov matrix and convert it to correlations.
+
+```{r}
+round(cov2cor(vcov(m04M07ctr)), 4)
+```
+
+```{r}
+round(cov2cor(vcov(m04M07nat)), 4)
+```
+
+Comments:
+
+-   The effect ($b$) and sigma are the same but the $a$ (Intercepts) coefficients are different.
+-   The correlations are strong on the natural scale and non-existent on the centered scale. This is an effect that is well documented with the correlation coefficient when *distant data points from the origin* are observed
+-   The 2 models, on centered and natural scales give the same prediction.
+
+#### Posteriors {.unnumbered}
+
+Get the samples from the posteriors of the 2 models (centered and natural scales).
+
+```{r}
+# get the posterior samples for both models (centered and natural scale)
+postQuap <- list()
+postQuap <- within(postQuap, {
+  nsamples <- 500L
+  ctr <- list()
+  ctr$post <- tidy_draws(m04M07ctr, n = nsamples) |>
+    # .chain and .iteration are NA and will generate error
+    select(-.chain, -.iteration) |>
+    # mutate(model = 1) |>
+    as_draws_df() |>
+    # mutate_variables(model = 1) |>
+    identity()
+  nat <- list()
+  nat$post <- tidy_draws(m04M07nat, n = nsamples) |>
+    select(-.chain, -.iteration) |>
+    # mutate(model = 2) |>
+    as_draws_df() |>
+    # mutate_variables(model = 2) |>
+    identity()
+  
+  # bind the 2 dataframes together
+  all <- list()
+  all$post <- bind_rows("ctr" = ctr$post, "nat" = nat$post, .id ="model")
+  
+  # long format used for plotting
+  all$lng <- all$post %>%
+    group_by(model) %>%
+    tidybayes::gather_variables()
+  })
+```
+
+and plot them by variable
+
+```{r}
+ggplot(postQuap$all$lng, aes(x = .value, color = model)) +
+  ggdist::stat_slabinterval(point_interval = mode_qi, fill = "antiquewhite") +
+  scale_color_paletteer_d("ggthemes::calc") +
+  facet_grid(model ~ .variable, scales = "free") +
+  theme_ggdist() +
+  theme(legend.position = "right") +
+  labs(title = "4M7: Posterior comparisons by model using quap",
+       subtitle = sprintf("sample size = %d", postQuap$nsamples),
+       x = NULL, y = NULL)
+```
+
+Conclusion: The main difference is with respect to the intercept which is different for uncentered and centered weight. The difference is not only in the location but also in the scale. The uncentered weight is less accurate as its variance is large compared to the centered weight.
+
+#### Predictions {.unnumbered}
+
+```{r}
+# the predictions for the centered model
+postQuap <- within(postQuap, {
+  ctr$newdata <- data.frame(
+    weight_c = seq_range(data04M07$weight_c, n = 30L))
+  ctr$predict <- predicted_draws(
+    m04M07ctr,
+    newdata = ctr$newdata,
+    ndraws = nsamples)
+  # get the intervals
+  ctr$predict_intr <- median_qi(ctr$predict) %>%
+  # put weight on natural scale to enable comparisons
+    mutate(weight = weight_c + mean(data04M07$weight))
+  
+  nat$newdata <- data.frame(
+    weight = seq_range(data04M07$weight, n = 30L))
+  nat$predict <- predicted_draws(
+    m04M07nat, 
+    newdata = nat$newdata, 
+    ndraws = nsamples)
+  # get the intervals
+  nat$predict_intr <- median_qi(nat$predict)
+  
+  # put all intervals together
+  all$predict_intr <- bind_rows(
+    "ctr"= ctr$predict_intr, "nat" = nat$predict_intr, .id = "model")
+  })
+```
+
+and the plot is
+
+```{r}
+ggplot(postQuap$all$predict_intr, 
+       aes(x = weight, y = .prediction, ymin = .lower, ymax = .upper,
+           color = model)) +
+  geom_pointinterval(position = position_dodge(width = 0.5),
+                     fatten_point = 2, size = 1) +
+  scale_color_paletteer_d("ggthemes::calc") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  labs(title = "Centered vs Natural Predictions",
+       subtitle = "4M7 using quap")
+```
+
+
+
+### Using `brm` {.unnumbered}
+
+We will use `brm` only for the centered model since this is only to compare with `quap` and `inla`.
+
+#### Fits {.unnumbered}
+
+```{r ch04_b04_07ctr}
+tictoc::tic(msg = sprintf("run time of %s, use the cache.", "65 secs."))
+b04M07ctr <- xfun::cache_rds({
+  brms::brm(
+  data = data04M07,
+  family = gaussian,
+  formula = height ~ 1 + weight_c,
+  prior = c(
+    prior(normal(178, 20), class = Intercept),
+    prior(lognormal(0, 1), class = b, lb = 0, ub = 3),
+    prior(exponential(1), class = sigma)),
+  iter = 2000, warmup = 1000, chains = 4, cores = detectCores(),  seed = 4)},
+  file = "ch04_b04_07ctr")
+tictoc::toc()
+```
+
+```{r}
+summary(b04M07ctr)
+```
+
+```{r ch04_b04_07nat}
+tictoc::tic(msg = sprintf("run time of %s, use the cache.", "60 secs."))
+b04M07nat <- xfun::cache_rds({
+  brms::brm(
+  data = data04M07,
+  family = gaussian,
+  formula = height ~ 1 + weight,
+  prior = c(
+    prior(normal(178, 20), class = Intercept),
+    prior(lognormal(0, 1), class = b, lb = 0, ub = 3),
+    prior(exponential(1), class = sigma)),
+  iter = 2000, warmup = 1000, chains = 4, cores = detectCores(),  seed = 4)},
+  file = "ch04_b04_07nat")
+tictoc::toc()
+```
+
+```{r}
+summary(b04M07nat)
+```
+
+#### Posteriors {.unnumbered}
+
+We extract the samples using `tidybayes` which gives the exact same commands as for `rethinking::quap` above.
+
+```{r}
+postBrm <- list()
+postBrm <- within(postBrm, {
+  nsamples <- 500L
+  ctr <- list()
+  ctr$post <- tidy_draws(b04M07ctr, n = nsamples) |>
+    # .chain and .iteration are NA and will generate error
+    select(-.chain, -.iteration) |>
+    # mutate(model = 1) |>
+    as_draws_df() |>
+    # mutate_variables(model = 1) |>
+    identity()
+  nat <- list()
+  nat$post <- tidy_draws(b04M07nat, n = nsamples) |>
+    select(-.chain, -.iteration) |>
+    # mutate(model = 2) |>
+    as_draws_df() |>
+    # mutate_variables(model = 2) |>
+    identity()
+  
+  # bind the 2 dataframes together
+  all <- list()
+  all$post <- bind_rows("ctr" = ctr$post, "nat" = nat$post, .id ="model")
+  
+  # long format used for plotting
+  all$lng <- all$post %>%
+    group_by(model) %>%
+    tidybayes::gather_variables() |>
+    mutate(.variable = if_else(.variable == "b_weight_c", "b_weight", .variable))
+  })
+```
+
+and plot them by variable
+
+```{r}
+postBrm$all$lng |>
+  # ungroup() |>
+  filter(.variable %in% c("b_Intercept", "b_weight")) |>
+  ggplot(aes(x = .value, color = model)) +
+  ggdist::stat_slabinterval(point_interval = mode_qi, fill = "antiquewhite") +
+  scale_color_paletteer_d("ggthemes::calc") +
+  facet_grid(model ~ .variable, scales = "free") +
+  theme_ggdist() +
+  theme(legend.position = "right") +
+  labs(title = "4M7: Posterior comparisons by model using brm",
+       subtitle = sprintf("sample size = %d", postQuap$nsamples),
+       x = NULL, y = NULL)
+```
+
+#### Predictions {.unnumbered}
+
+And, again, we can use the exact same command using `tidybayes` with `brms` as we used with `rethinking`.
+
+```{r}
+# the predictions for the centered model
+postBrm <- within(postBrm, {
+  ctr$newdata <- data.frame(
+    weight_c = seq_range(data04M07$weight_c, n = 30L))
+  ctr$predict <- predicted_draws(
+    m04M07ctr,
+    newdata = ctr$newdata,
+    ndraws = nsamples)
+  # get the intervals
+  ctr$predict_intr <- median_qi(ctr$predict) %>%
+  # put weight on natural scale to enable comparisons
+    mutate(weight = weight_c + mean(data04M07$weight))
+  
+  nat$newdata <- data.frame(
+    weight = seq_range(data04M07$weight, n = 30L))
+  nat$predict <- predicted_draws(
+    m04M07nat, 
+    newdata = nat$newdata, 
+    ndraws = nsamples)
+  # get the intervals
+  nat$predict_intr <- median_qi(nat$predict)
+  
+  # put all intervals together
+  all$predict_intr <- bind_rows(
+    "ctr"= ctr$predict_intr, "nat" = nat$predict_intr, .id = "model")
+  })
+```
+
+
+and the plot
+
+```{r}
+ggplot(postBrm$all$predict_intr, 
+       aes(x = weight, y = .prediction, ymin = .lower, ymax = .upper,
+           color = model)) +
+  geom_pointinterval(position = position_dodge(width = 0.5),
+                     fatten_point = 2, size = 1) +
+  scale_color_paletteer_d("ggthemes::calc") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  labs(title = "Centered vs Natural Predictions",
+       subtitle = "4M7 using brm")
+```
+
+## 4M8 {#prac4M8 .unnumbered}
+
+The methodology used here comes from section 4.5 of @kurtz2020b to whom I am forever grateful for the wonderful books he gives us.
+
+We remove the rows with `NA` in the `doy` variable.
+
+```{r}
+data("cherry_blossoms")
+data04M08 <- cherry_blossoms %>%
+  drop_na(doy)
+rm(cherry_blossoms)
+stopifnot(all.equal(dim(data04M08), c(827L, 5L)))
+skimr::skim(data04M08, year, doy, temp)
+```
+
+This function will be used to create the B matrix. See R code 4.74 in section 4.5.2 of the textbook.
+
+```{r}
+# create the B (basis) matrix
+get_B <- function(x, knots, degree = 3L, intercept = TRUE) {
+  out <- splines::bs(x = x, 
+                     knots = knots[-c(1, length(knots))], 
+                     degree = degree, 
+                     intercept = intercept)
+  stopifnot(all.equal(dim(out), c(length(x), length(knots) + degree - 1)))
+  out
+}
+```
+
+### Model {.unnumbered}
+
+$$
+\begin{align*}
+doy_i &\sim \mathcal{N}(\mu_i, \sigma) \\
+\mu_i &= \alpha + \sum_{k=1}^Kw_kB_{k, i} \\
+\alpha &\sim \mathcal{N}(100, 10) \\
+w_j &\sim \mathcal{N}(0, 10) \\
+\sigma &\sim \mathcal{Exp}(1)
+\end{align*}
+$$ 
+
+
+### Functions {.unnumbered}
+
+A function to create the plot used in this practice
+
+```{r}
+# the basic plot used in 4M8
+plot_04M08 <- function(data, x_var = "year", y_var = "doy", color_var = "temp", 
+                       knots = 15L, colrs = "grDevices::SunsetDark") {
+  titles <- list(
+    title = sprintf("4M8: Cherry Blossom in Japan with %d knots", length(knots)),
+    subtitle = sprintf("%d observations", nrow(data)))
+  
+  ggplot(data, aes(x = .data[[x_var]], y = .data[[y_var]], 
+                   color = .data[[color_var]])) +
+    geom_point(shape = 20, size = 2, alpha = 2/3) +
+    geom_vline(xintercept = knots, color = "slateblue", alpha = 1/2) +
+    scale_x_continuous(breaks = knots, labels = scales::label_number(big.mark = "")) +
+  scale_color_paletteer_c(colrs) +
+  theme_classic() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = c(0.05, 0.8),
+        axis.text.x = element_text(size = rel(0.9))) +
+  labs(title = titles$title, subtitle = titles$subtitle)
+}
+```
+
+### a) Knots = 15, $w_j \sim \mathcal{N}(0, 10)$
+
+Create the knots and bias function with degree 3 (cubic spline) and an intercept
+
+```{r}
+splinA <- list()
+splinA <- within(splinA, {
+  data <- data04M08
+  knots = quantile(data$year, 
+                   probs = seq(from = 0, to = 1, length.out = 15L))
+  B <- get_B(x = data$year, knots = knots, degree = 3L, intercept = TRUE)
+  bias <- B %>%
+    as.data.frame() %>%
+    setNames(sprintf("B%02d", seq_len(ncol(.)))) %>%
+    mutate(year = data$year) %>%
+    pivot_longer(cols = -year, names_to = "bias_func", values_to = "bias")
+  # the last column is a matrix column, with same nb of rows as the other
+  # columns but with a column including 17 subcolumns (!)
+  data <- data %>%
+    mutate(B = B)
+})
+```
+
+
+
+```{r ch04_b04_08a}
+tictoc::tic(msg = sprintf("run time of %s, use the cache.", "70 secs."))
+b04M08a <- xfun::cache_rds({
+  brm(data = splinA$data,
+      family = gaussian,
+      doy ~ 1 + B,
+      prior = c(prior(normal(100, 10), class = Intercept),
+                prior(normal(0, 10), class = b),
+                prior(exponential(1), class = sigma)),
+      cores = detectCores(), seed = 4)},
+  file = "ch04_b04_08a")
+tictoc::toc()
+```
+
+```{r}
+summary(b04M08a)
+```
+
+```{r}
+# get the fitted values (linpred)
+splinA <- within(splinA,{
+  data <- data04M08
+  newdata <- data.frame(
+    year = seq_range(data$year, n = 30)) %>%
+    # NOTE: must use mutate() to add B matrix "as is"
+    mutate(B = get_B(x = year, knots = splinA$knots, 
+                     degree = 3, intercept = TRUE))
+  
+  # linpred_draws is the same as fitted
+  fitted <- linpred_draws(b04M08a, newdata = newdata) %>%
+    as.data.frame() %>%
+    select(-B) |>
+    group_by(year) |>
+    mean_qi() |>
+    identity()
+})
+# splinA$fitted
+```
+
+```{r}
+# plot the fitted values
+p <- list()
+p$A <- plot_04M08(data04M08, knots = splinA$knots) +
+  labs(subtitle = "4M8 a)") +
+  geom_smooth(data = splinA$fitted, 
+              mapping = aes(x = year, y = .linpred, ymin = .lower, ymax = .upper),
+              inherit.aes = FALSE,
+              color = "blueviolet", fill = "cornflowerblue", alpha = 1/2)
+p$A
+```
+
+
+
+### b) Knots = 25, $w_j \sim \mathcal{N}(0, 10)$ {.unnumbered}
+
+We use the same process as in a) above but with different nb of knots
+
+```{r}
+stop("TODO")
+splinB <- list(knots = quantile(data04M08$year, 
+                                 probs = seq(from = 0, to = 1, length.out = 25L)))
+# must specify intercept = TRUE
+splinB$B <- get_B(x = data04M08$year, knots = splinB$knots,
+                 degree = 3L, intercept = TRUE)
+
+# this data.frame will be reused below with the posteriors to plot
+# the splines with their repective year
+splinB$bias <- splinB$B %>%
+  as.data.frame() %>%
+  setNames(sprintf("B%02d", seq_len(ncol(.)))) %>%
+  mutate(year = data04M08$year) %>%
+  pivot_longer(cols = -year, names_to = "bias_func", values_to = "bias")
+
+# the dataframe used to fit the model
+splinB$data <- data04M08 %>%
+  mutate(B = splinB$B)
+```
+
+```{r}
+a_file <- here::here("fits", "b04M08b.rds")
+b04M08b <- readRDS(file = a_file)
+# b04M08b <- brm(data = splinB$data,
+#       family = gaussian,
+#       doy ~ 1 + B,
+#       prior = c(prior(normal(100, 10), class = Intercept),
+#                 prior(normal(0, 10), class = b),
+#                 prior(exponential(1), class = sigma)),
+#       cores = detectCores(), seed = 4)
+# saveRDS(b04M08b, file = a_file)
+```
+
+```{r}
+summary(b04M08b)
+```
+
+```{r}
+samples <- list()
+# note: must use mutate() to add B matrix "as is"
+samples$newdata <- data.frame(
+  year = seq_range(data04M08$year, n=30L)) %>%
+  mutate(B = get_B(x = year, knots = splinB$knots, 
+                   degree = 3L, intercept = TRUE))
+
+# sample the fitted values
+samples$fitted <- fitted(b04M08b, newdata = samples$newdata) %>%
+  as.data.frame() %>%
+  bind_cols(year = samples$newdata$year)
+# str(samples$fitted)
+
+# plot the fitted values
+p$B <- plot_04M08(data04M08, knots = splinB$knots) +
+  labs(subtitle = "4M8 b)") +
+  geom_smooth(data = samples$fitted, 
+              mapping = aes(x = year, y = Estimate, ymin = Q2.5, ymax = Q97.5),
+              inherit.aes = FALSE,
+              color = "blueviolet", fill = "cornflowerblue", alpha = 1/2) +
+  theme(axis.text.x = element_text(size = rel(0.50)))
+p$B
+```
+
+### c) Knots = 25, $w_j \sim \mathcal{N}(0, 20)$ {.unnumbered}
+
+```{r}
+splinC <- list(knots = quantile(data04M08$year, 
+                                 probs = seq(from = 0, to = 1, length.out = 25L)))
+# must specify intercept = TRUE
+splinC$B <- get_B(x = data04M08$year, knots = splinC$knots,
+                 degree = 3L, intercept = TRUE)
+
+# this data.frame will be reused below with the posteriors to plot
+# the splines with their repective year
+splinC$bias <- splinC$B %>%
+  as.data.frame() %>%
+  setNames(sprintf("B%02d", seq_len(ncol(.)))) %>%
+  mutate(year = data04M08$year) %>%
+  pivot_longer(cols = -year, names_to = "bias_func", values_to = "bias")
+
+# the dataframe used to fit the model
+splinC$data <- data04M08 %>%
+  mutate(B = splinC$B)
+```
+
+```{r}
+a_file <- here::here("fits", "b04M08c.rds")
+b04M08c <- readRDS(file = a_file)
+# b04M08c <- brm(data = splinC$data,
+#       family = gaussian,
+#       doy ~ 1 + B,
+#       prior = c(prior(normal(100, 10), class = Intercept),
+#                 prior(normal(0, 20), class = b),
+#                 prior(exponential(1), class = sigma)),
+#       cores = detectCores(), seed = 4)
+# saveRDS(b04M08c, file = a_file)
+```
+
+```{r}
+summary(b04M08c)
+```
+
+```{r}
+samples <- list()
+# note: must use mutate() to add B matrix "as is"
+samples$newdata <- data.frame(
+  year = seq_range(data04M08$year, n=30L)) %>%
+  mutate(B = get_B(x = year, knots = splinC$knots, 
+                   degree = 3L, intercept = TRUE))
+
+# sample the fitted values
+samples$fitted <- fitted(b04M08c, newdata = samples$newdata) %>%
+  as.data.frame() %>%
+  bind_cols(year = samples$newdata$year)
+# str(samples$fitted)
+
+# plot the fitted values
+p$C <- plot_04M08(data04M08, knots = splinC$knots) +
+  labs(subtitle = "4M8 c)") +
+  geom_smooth(data = samples$fitted, 
+              mapping = aes(x = year, y = Estimate, ymin = Q2.5, ymax = Q97.5),
+              inherit.aes = FALSE,
+              color = "blueviolet", fill = "cornflowerblue", alpha = 1/2) +
+  theme(axis.text.x = element_text(size = rel(0.50))) +
+  labs(title = sprintf("Cherry Blossom in Japan with %d knots and increased weight sd to 20", 
+                       length(splinC$knots)),
+       subtitle = "4M8 c)")
+p$C
+```
+
+### Conclusion {.unnumbered}
+
+#### Plots {.unnumbered}
+
+The increase of nb of knots increases the fits (i.e. nb of turns)
+
+```{r}
+p$A / p$B
+```
+
+and the increase in variability of the weight increase the range of the coefficient.
+
+```{r}
+p$B / p$C
+```
+
+However this is not visually obvious when looking at the scatter plot. See just below the coefficient comparisons which is more informative.
+
+#### Summaries {.unnumbered}
+
+```{r}
+summ <- list()
+summ$A <- data.frame(model = "A", fixef(b04M08a)) %>%
+  tibble::rownames_to_column(var = "variable")
+summ$B <- data.frame(model = "B", fixef(b04M08b)) %>%
+  tibble::rownames_to_column(var = "variable")
+summ$C <- data.frame(model = "C", fixef(b04M08c)) %>%
+  tibble::rownames_to_column(var = "variable")
+summ$data <- bind_rows(summ$A, summ$B, summ$C) %>%
+  mutate(variable = factor(variable,
+                           levels = c("Intercept", sprintf("B%d", 1:27)),
+                           ordered = TRUE))
+
+ggplot(summ$data[summ$data$variable != "Intercept", ], 
+       aes(x = variable, y = Estimate, ymin = Q2.5, ymax = Q97.5, color = model)) +
+  geom_pointinterval(position = position_dodge(width = 1/2)) +
+  scale_color_paletteer_d("futurevisions::cancri") +
+  ggthemes::theme_hc() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        axis.text.x = element_text(size = rel(0.85))) +
+  labs(title = "Comparing the models' coefficients (excludding intercept)",
+       subtitle = "4M8",
+       x = NULL, y = NULL)
+  # coord_flip()
+```
+
+We can see that the model are similar expect that
+
+-   Model A has significantly lower B16 and B17 coefficients. They are nonetheless similar to the B26 and B27 coefficients of models B and C
+-   Model B and C have the same coefficient but model C which is the model with the increased prior variance for the weights has a wider confidence range for all coefficients
+
+To better visualize, we could look at the models coefficient after aliging the knots with the year
+
+```{r}
+summ <-list()
+summ$A <- data.frame(model = "A", fixef(b04M08a)) %>%
+  mutate(knots = c(NA, min(data04M08$year) -1, splinA$knots, max(data04M08$year) + 1))
+summ$B <- data.frame(model = "B", fixef(b04M08b)) %>%
+  mutate(knots = c(NA, min(data04M08$year) -1, splinB$knots, max(data04M08$year) + 1))
+summ$C <- data.frame(model = "C", fixef(b04M08c)) %>%
+  mutate(knots = c(NA, min(data04M08$year) -1, splinC$knots, max(data04M08$year) + 1))
+summ$data <- bind_rows(summ$A, summ$B, summ$C) %>%
+  filter(!is.na(knots)) %>%
+  mutate(knots = round(knots)) %>%
+  mutate(knots = factor(knots, ordered = TRUE))
+
+ggplot(summ$data, 
+       aes(x = knots, y = Estimate, ymin = Q2.5, ymax = Q97.5, color = model)) +
+  geom_pointinterval(position = position_dodge(width = 1/2)) +
+  scale_color_paletteer_d("futurevisions::cancri") +
+  ggthemes::theme_hc() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        axis.text.x = element_text(size = rel(0.85)),
+        axis.text.y = element_text(size = rel(0.80))) +
+  labs(title = "Comparing the models' coefficients based on year",
+       subtitle = "4M8",
+       x = "year", y = NULL) +
+  coord_flip()
+```
+
+### Using `inla`
+
+See section 9.2, p. 204, of @gomez2020 on using `inla` with *B-spline*. Also, see section 3.2, p.47 of @wang2018 on setting the priors.
+
+```{r}
+names(inla.models()$priors)
+```
+
+```{r}
+# create newdata with dependent variable set to NA  to samples the splines
+newdata <- list(
+  knots = quantile(data04M08$year, 
+                   probs=seq(from=0 , to=1, length.out=15L)))
+newdata$new<- data.frame(
+  year = newdata$knots,
+  doy = NA_real_)
+newdata$data <- data04M08 %>%
+  select(year, doy) %>%
+  bind_rows(newdata$new)
+
+# IMPORTANT: We must use the same parameters as for model b04M08a to 
+# allow comparison.  Se the priors in the parameters.
+a_file <- here::here("fits", "i04M08a.rds")
+i04M08a <- readRDS(a_file)
+# i04M08a <- inla(
+#   formula = doy ~ 1 + bs(year, knots = newdata$knots, degree = 3L, intercept = TRUE),
+#   control.fixed = list(mean.intercept = 100, prec.intercept = 1 / (10^2),
+#                 mean = 0, prec = 1 / (10^2)),
+#   control.family = list(hyper = list(prec = list("gamma", param = c(1, 0.00005)))),
+#   control.predictor = list(compute = TRUE),
+#   data = newdata$data
+#   )
+# saveRDS(i04M08a, file = a_file)
+```
+
+and the coefficients are
+
+```{r}
+# from inla
+i04M08a$summary.fixed
+```
+
+The coefficients from `inla` include extra coefficients at the beginning and end which are near zero with very large sd.
+
+```{r}
+i04M08a$summary.fixed[c("1", "19"), ]
+```
+
+once we remove these extreme items we can compare `inla` and `brm`
+
+```{r}
+summ <- i04M08a$summary.fixed %>%
+  filter(!(rownames(i04M08a$summary.fixed) %in% c("1", "19"))) %>%
+  select(mean, sd, `0.025quant`, `0.975quant`)  %>%
+  tibble::remove_rownames() %>%
+  bind_cols(as.data.frame(fixef(b04M08a)))
+# compare isually the values
+summ %>%
+  select(mean, Estimate, sd, Est.Error) %>%
+  round(digits = 2)
+```
+
+We observe that `inla` and `brm` generate coefficients and their errors which are similar.
+
+## 4H1 {#prac4H1 .unnumbered}
+
+### Data and model {.unnumbered}
+
+```{r}
+data("Howell1")
+data04H01 <- Howell1 %>%
+  filter(age >= 18) %>%
+  mutate(weight_c = scale(weight, center = TRUE, scale = FALSE))
+rm("Howell1")
+stopifnot(all.equal(dim(data04H01), c(352L, 5L)))
+```
+
+and the model that will be used
+
+$$
+\begin{align*}
+height_i &\sim \mathcal{N}(\mu_i, \sigma) \\
+\mu_i &= \alpha + \beta \cdot weight_i \\
+\alpha &\sim \mathcal{N}(178, 20) \\
+\beta &\sim \mathcal{LogNormal}(1, 0.5) \\
+\sigma &\sim \mathcal{Exponential}(1)
+\end{align*}
+$$
+
+and get the fit with `quap`
+
+```{r}
+a_file <- here::here("fits", "m04H01.rds")
+m04H01 <- readRDS(file = a_file)
+# m04H01 <- quap(
+#   flist = alist(
+#     height ~ dnorm(mu, sigma),
+#     mu <- a + b * weight,
+#     a ~ dnorm(178, 20),
+#     b ~ dlnorm(1, 0.5),
+#     sigma ~ dexp(1)
+#   ),
+#   data = data04H01,
+#   start = list(a = mean(d$height), b = 0.5)
+# )
+saveRDS(object = m04H01, file = a_file)
+```
+
+get the samples of posterior likelihood
+
+```{r}
+samples <- list(n = 1000L)
+samples$data <- extract.samples(m04H01, n = samples$n)
+```
+
+### Using `rethinking::link()` {.unnumbered}
+
+Find the predictions using the detailed method as described in overthinking box of section 4.4.3.4. The `rethinking::link()` function does that.
+
+```{r}
+# the predictors used to make predictions
+preds <- list(weight = c(46.95, 43.72, 64.78, 32.59, 54.63))
+
+# the simulated predictions using the sampled posterior likelihood
+set.seed(4)
+preds$sim <- sapply(X = preds$weight, FUN = function(x) {
+  rnorm(n = samples$n, 
+        mean = samples$data$a + samples$data$b * x, 
+        sd = samples$data$sigma)
+  })
+
+
+# get the interval of predictions and create the data.frame
+preds$intervals <- apply(X = preds$sim, MARGIN = 2, FUN = ggdist::mean_hdi, 
+                         .width = 0.89)
+preds$intervals <- do.call(rbind, preds$intervals)
+preds$intervals <- preds$intervals %>%
+  mutate(individual = seq_along(preds$weight)) %>%
+  rename(height = y) %>%
+  relocate(individual)
+preds$intervals
+```
+
+### Using `tidyverse` {.unnumbered}
+
+The tidyverse way will be used from hereon.
+
+```{r}
+preds <- list(weight = c(46.95, 43.72, 64.78, 32.59, 54.63))
+preds$newdata <- with(preds, {
+  data.frame("individual" = seq_along(weight), "weight" = weight)
+  })
+
+# get the simulated predictions
+set.seed(4)
+preds$sim <- purrr::map_dfr(
+  .x = preds$newdata$weight,
+  .f = function(x) {
+    mu <- samples$data$a + samples$data$b * x
+    y <- rnorm(n = length(mu), mean = mu, sd = samples$data$sigma)
+    data.frame(weight = x, height = y)
+  })
+
+# the predictions intervals
+preds$intervals <- preds$sim %>%
+  group_by(weight) %>%
+  ggdist::mean_hdi(height, .width = 0.89) %>%
+  mutate(individual = preds$newdata$individual[order(preds$newdata$weight)]) %>%
+  relocate(individual)
+preds$intervals
+```
+
+## 4H2 {#prac4H2 .unnumbered}
+
+Load the data
+
+```{r}
+data("Howell1")
+data04H02 <- Howell1 %>%
+  filter(age < 18) %>%
+  mutate(weight_c = scale(weight, center = TRUE, scale = FALSE))
+rm("Howell1")
+# there should be 192 rows
+stopifnot(all.equal(dim(data04H02), c(192L, 5L)))
+skimr::skim(data04H02)
+```
+
+### Model {.unnumbered}
+
+$$
+\begin{align*}
+height_i &\sim \mathcal{N}(\mu_i, \sigma) \\
+\mu_i &= \alpha + \beta \cdot weight_i \\
+\alpha &\sim \mathcal{N}(80, 40) \\
+\beta &\sim \mathcal{LogNormal}(1, 0.5) \\
+\sigma &\sim \mathcal{Exp}(1)
+\end{align*}
+$$
+
+### 4H2 a) with `quap` {.unnumbered}
+
+-   Note on priors
+    -   Using sigma \~ dexp(rate = 1) which seems to work well with this model
+    -   a \~ dnorm(80, 40) is based on the average height of the kids
+    -   b \~ dlnorm(1, 0.5) since we assume the growth rate is positive
+-   Start values
+    -   using start data helps very much for this model converge consistently
+    -   for $a$ simply use the average height
+    -   for $b$ we use 1 as it should be strictly positive and assuming kids grow faster than adults.
+
+```{r}
+a_file <- here::here("fits", "m04H02.rds")
+m04H02 <- readRDS(file = a_file)
+# m04H02 <- quap(
+#     flist = alist(
+#         height ~ dnorm(mu, sigma),
+#         mu <- a + b * weight,
+#         a ~ dnorm(80, 40),
+#         b ~ dlnorm(1, 0.5),
+#         sigma ~ dexp(1)
+#         ),
+#     data = data04H02,
+#     start = list(a = mean(data04H01$height), b = 1)
+# )
+# saveRDS(m04H02, file = a_file)
+rethinking::precis(m04H02, prob = 0.89)
+```
+
+for 10 more units of weights the child should be taller between 26 and 28 cm.
+
+### 4H2 b) with `quap` {.unnumbered}
+
+#### Get the fitted values with `quap` {.unnumbered}
+
+See section 4.4.3.4 for more details.
+
+```{r}
+preds <- list(n = 30L)
+preds$newdata <- data.frame(weight = modelr::seq_range(data04H02$weight, 
+                                                       n = preds$n))
+```
+
+```{r}
+precis(m04H02)
+```
+
+See the overthinking box in section 4.4.3.4 to explain `rethinking::link()`
+
+```{r}
+# get the samples of fitted values
+samples <- list(n = 1000L)
+samples$fitted <- rethinking::link(fit = m04H02, 
+                                 data = preds$newdata, 
+                                 n = samples$n)
+
+# the intervals of fitted values
+samples$fitted_intervals <- apply(X = samples$fitted, MARGIN = 2, FUN = function(x) {
+  c("mean" = mean(x), rethinking::HPDI(x))
+  }) %>%
+  t() %>%
+  bind_cols(weight = preds$newdata) %>%
+  as.data.frame()
+samples$fitted_intervals
+```
+
+and the prediction intervals are obtained as described in section 4.4.3.5 using `rethinking::sim()`
+
+```{r}
+samples$predict <- rethinking::sim(fit = m04H02,
+                                 data = preds$newdata,
+                                 n = samples$n)
+samples$predict_intervals <- 
+  apply(X = samples$predict, MARGIN = 2, 
+        FUN = function(x) {
+          c("mean" = mean(x), rethinking::HPDI(x))
+          }) %>% 
+  t() %>%
+  bind_cols(weight = preds$newdata) %>%
+  as.data.frame()
+samples$predict_intervals
+```
+
+```{r}
+ggplot(data = data04H02, aes(x = weight)) +
+  geom_ribbon(data = samples$predict_intervals,
+              aes(ymin = `|0.89`, ymax = `0.89|`),
+              fill = "lightcyan") +
+  geom_smooth(data = samples$fitted_intervals,
+              aes(y = mean, ymin = `|0.89`, ymax = `0.89|`),
+              stat = "identity",
+              fill = "lightcyan3", color = "black", alpha = 1, size = 1/2) +
+  geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
+  scale_x_continuous( breaks = scales::breaks_extended(n = 7)) +
+  scale_color_paletteer_c("pals::kovesi.linear_kryw_5_100_c67") +
+  theme_minimal() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = c(0.1, 0.8)) +
+  labs(title = "quap fit - Practice 4H2", x = "weight", y = "height")
+```
+
+### 4H2 a) with `brm` {.unnumbered}
+
+Same comments and conclusion as for `quap` above
+
+```{r}
+a_file <- here::here("fits", "b04H02.rds")  # save to rds file
+b04H02 <- readRDS(file = a_file)
+# b04H02 <- brms::brm(data = data04H02,
+#                          formula = height ~ 1 + weight,
+#                          family = gaussian(),
+#                          prior = c(
+#                            prior(normal(100, 50), class = Intercept),
+#                            prior(lognormal(0, 2), class = b, lb = 0),
+#                            prior(cauchy(0, 1), class = sigma)),
+#                          iter = 2000, warmup = 1000, chains = 4,
+#                          cores = detectCores(), seed = 4)
+# saveRDS(b04H02, file = a_file)
+b04H02_fixf <- brms::fixef(b04H02)
+b04H02_fixf
+```
+
+### 4H2 b) with `brm` {.unnumbered}
+
+```{r}
+# use the same samples size as before
+samples <- list(n = samples$n,
+                probs = c(0.055, 0.945))
+
+# get the fitted values
+samples$fitted <- fitted(b04H02, newdata = preds$newdata, 
+                         probs = samples$probs) %>%
+  data.frame() %>%
+  bind_cols(preds$newdata)
+samples$fitted
+
+# get the predicted values
+samples$predict <- predict(b04H02, newdata = preds$newdata, 
+                         probs = samples$probs) %>%
+  data.frame() %>%
+  bind_cols(preds$newdata)
+samples$predict
+```
+
+and we illustrate the results
+
+```{r}
+ggplot(data = data04H02, aes(x = weight)) +
+  geom_ribbon(data = samples$predict,
+              aes(ymin = Q5.5, ymax = Q94.5),
+              fill = "lightcyan") +
+  geom_smooth(data = samples$fitted,
+              aes(y = Estimate, ymin = Q5.5, ymax = Q94.5),
+              stat = "identity",
+              fill = "lightcyan3", color = "black", alpha = 1, size = 1/2) +
+  geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
+  scale_x_continuous( breaks = scales::breaks_extended(n = 7)) +
+  scale_color_paletteer_c("pals::kovesi.linear_kryw_5_100_c67") +
+  theme_minimal() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = c(0.1, 0.8)) +
+  labs(title = "BRMS fit - Practice 4H2", x = "weight", y = "height")
+```
+
+### 4H2 c) {.unnumbered}
+
+The data points seem to have a nonlinear relation with weight, visually. The relation could hypothetized to be quadratic. It could also be logarithmic.
+
+## 4H3 {#prac4H3 .unnumbered}
+
+This is covered by section 4.5.1 polynomial regression but instead of polynomial we use a logarithmic relation..
+
+The data is
+
+```{r}
+data("Howell1")
+data04H03 <- Howell1 %>%
+  mutate(weight_c = scale(weight, center = TRUE, scale = FALSE),
+         weight_log = log(weight))
+rm("Howell1")
+stopifnot(all.equal(dim(data04H03), c(544L, 6L)),
+          all(is.finite(data04H03$weight_log)))
+skimr::skim(data04H03)
+```
+
+The model used is
+
+$$
+\begin{align*}
+height_i &\sim \mathcal{N}(\mu_i, \sigma) \\
+\mu_i &= \alpha + \log{(\beta)} \cdot weight_i \\
+\alpha &\sim \mathcal{N}(178, 20) \\
+\beta &\sim \mathcal{N}(0, 10) \\
+\sigma &\sim \mathcal{Exponential}(1)
+\end{align*}
+$$
+
+### 4H3 a) using `quap` {.unnumbered}
+
+> Important: We have to use `dunif` for sigma to make the `quap` converge. Otherwise the cov matrix is not positive definite.
+
+```{r}
+a_file <- here::here("fits", "m04H03.rds")
+m04H03 <- readRDS(file = a_file)
+# m04H03 <- rethinking::quap(
+#     flist = alist(
+#         height ~ dnorm(mu, sigma),
+#         mu <- a + b * log(weight),
+#         a ~ dnorm(178, 20),
+#         b ~ dnorm(0, 10),
+#         sigma ~ dunif(0, 50)
+#         ),
+#     data = data04H03
+# )
+# saveRDS(m04H03, file = a_file)
+precis(m04H03, prob = 0.89)
+```
+
+Since we use $\log{weight}$ than any change of $\log{weight}$ represents a percentage change of $weight$, therefore $b$ represents that, for every percentage increase of the weight, the height is increased by 46.76 of a percentage.
+
+### 4H3 b) using `quap` {.unnumbered}
+
+We use the same process as in 4H2 just above
+
+```{r}
+preds <- list(n = 30L)
+preds$newdata <- data.frame(
+  weight = modelr::seq_range(data04H03$weight, n = preds$n))
+```
+
+same process as in 4H2 above where we sample the fitted and predicted values
+
+```{r}
+# get the samples of fitted values
+samples <- list(n = 1000L)
+samples$fitted <- rethinking::link(fit = m04H03, 
+                                 data = preds$newdata, 
+                                 n = samples$n)
+
+# the intervals of fitted values
+samples$fitted_intervals <- apply(X = samples$fitted, MARGIN = 2, FUN = function(x) {
+  c("mean" = mean(x), rethinking::HPDI(x, prob = 0.97))
+  }) %>%
+  t() %>%
+  bind_cols(weight = preds$newdata) %>%
+  as.data.frame()
+samples$fitted_intervals
+```
+
+and the prediction intervals are obtained as described in section 4.4.3.5 using `rethinking::sim()` (sames as in 4H2 above)
+
+```{r}
+samples$predict <- rethinking::sim(fit = m04H03,
+                                 data = preds$newdata,
+                                 n = samples$n)
+samples$predict_intervals <- 
+  apply(X = samples$predict, MARGIN = 2, 
+        FUN = function(x) {
+          c("mean" = mean(x), rethinking::HPDI(x, prob = 0.97))
+          }) %>% 
+  t() %>%
+  bind_cols(weight = preds$newdata) %>%
+  as.data.frame()
+samples$predict_intervals
+```
+
+```{r}
+ggplot(data = data04H03, aes(x = weight)) +
+  geom_ribbon(data = samples$predict_intervals,
+              aes(ymin = `|0.97`, ymax = `0.97|`),
+              fill = "aquamarine1") +
+  geom_smooth(data = samples$fitted_intervals,
+              aes(y = mean, ymin = `|0.97`, ymax = `0.97|`),
+              stat = "identity",
+              fill = "aquamarine4", color = "black", alpha = 1, size = 1/2) +
+  geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
+  scale_x_continuous( breaks = scales::breaks_extended(n = 7)) +
+  scale_color_paletteer_c("pals::kovesi.linear_kry_5_98_c75") +
+  theme_minimal() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = c(0.1, 0.8)) +
+  labs(title = "quap fit - Practice 4H3", x = "weight", y = "height")
+```
+
+### 4H3 a) using `brm` {.unnumbered}
+
+Same comments and conclusion as for `quap` above. The results are very similar.
+
+```{r}
+a_file <- here::here("fits", "b04H03.rds")  # save to rds file
+b04H03 <- readRDS(file = a_file)
+# b04H03 <- brms::brm(data = data04H03,
+#                    formula = height ~ 1 + log(weight),
+#                    family = gaussian,
+#                    prior =
+#                      c(prior(normal(178, 20), class = Intercept),
+#                        prior(normal(0, 10), class = b),
+#                        prior(cauchy(0, 1), class = sigma)),
+#                    iter = 2000, warmup = 1000, chains = 4,
+#                    cores = detectCores(), seed = 4)
+# saveRDS(b04H03, file = a_file)
+brms::fixef(b04H03)
+```
+
+### 4H3 b) using `brm` {.unnumbered}
+
+```{r}
+# use the same samples size as before
+samples <- list(n = samples$n,
+                probs = c(0.015, 0.985))
+
+# get the fitted values
+samples$fitted <- fitted(b04H03, newdata = preds$newdata, 
+                         probs = samples$probs) %>%
+  data.frame() %>%
+  bind_cols(preds$newdata)
+samples$fitted
+
+# get the predicted values
+samples$predict <- predict(b04H03, newdata = preds$newdata, 
+                         probs = samples$probs) %>%
+  data.frame() %>%
+  bind_cols(preds$newdata)
+samples$predict
+```
+
+and we illustrate the results which are similar to `quap` above.
+
+```{r}
+ggplot(data = data04H03, aes(x = weight)) +
+  geom_ribbon(data = samples$predict,
+              aes(ymin = Q1.5, ymax = Q98.5),
+              fill = "aquamarine1") +
+  geom_smooth(data = samples$fitted,
+              aes(y = Estimate, ymin = Q1.5, ymax = Q98.5),
+              stat = "identity",
+              fill = "aquamarine4", color = "black", alpha = 1, size = 1/2) +
+  geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
+  scale_x_continuous( breaks = scales::breaks_extended(n = 7)) +
+  scale_color_paletteer_c("pals::kovesi.linear_kry_5_98_c75") +
+  theme_minimal() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = c(0.1, 0.8)) +
+  labs(title = "BRMS fit - Practice 4H3", x = "weight", y = "height")
+```
+
+## 4H4 {#prac4H4 .unnumbered}
+
+See section 4.5.1 for reference to this practice. R code 4.65 (p. 111)
+
+The data is as in section 4.5.1. This practice is using techniques that are illustrated at the beginning of section 5.1 in the next chapter.
+
+```{r}
+data("Howell1")
+data04H04 <- Howell1 %>%
+  mutate(weight_c = scale(weight, center = TRUE, scale = FALSE),
+         weight_c2 = weight_c ^ 2)
+rm("Howell1")
+stopifnot(all.equal(dim(data04H04), c(544L, 6L)))
+skimr::skim(data04H04)
+```
+
+the model has been slightly modified by using the centered weight instead of the standard weight. It seems to work better with `quap`.
+
+The values for $a$ are from the summary using `skimr` just above.
+
+$$
+\begin{align*}
+h_i &\sim \mathcal{N}(\mu_i, \sigma)\\
+\mu_i &= \alpha + \beta_1 \cdot weight\_c_i + \beta_2 \cdot weight\_c^2_i \\
+\alpha &\sim \mathcal{N}(138, 50) \\
+\beta_1 &\sim \mathcal{LogNormal}(0,1) \\
+\beta_2 &\sim \mathcal{N}(0,1) \\
+\sigma &\sim \mathcal{Exp}(1)
+\end{align*}
+$$
+
+### 4H4 using `quap` {.unnumbered}
+
+```{r}
+a_file <- here::here("fits", "m04H04.rds")
+m04H04 <- readRDS(file = a_file)
+# m04H04 <- quap(
+#   flist = alist(
+#     height ~ dnorm(mu, sigma),
+#     mu <- a + b1 * weight_c + b2 * weight_c2,
+#     a ~ dnorm(138, 50),
+#     b1 ~ dlnorm(0, 1),
+#     b2 ~ dnorm(0, 1),
+#     sigma ~ exp(1)
+#   ),
+#   data = data04H04
+# )
+# saveRDS(m04H04, file = a_file)
+rethinking::precis(m04H04)
+```
+
+The function `rethinking::extract.prior()` is used to sample the prior distributions from the fit. Then the process of finding the mu's is the same as the overthinking box of section 4.4.3.4 (p.107). See also practice 4H1 above for the method.
+
+```{r}
+samples <- list(n = 1000L)
+# extract the samples of prior distributions
+# for sigma simulate it, as extract.prior does not return it
+samples$prior <- extract.prior(m04H04, n = samples$n) %>%
+  as.data.frame() %>%
+  mutate(sigma = rexp(n = nrow(.), rate = 1))
+
+# m04H04_prior <- extract.prior(m04H04, n = 1000) %>%
+#   as.data.frame() %>%
+#   mutate(sigma = rexp(n = nrow(.), rate = 1))
+# str(m04H04_prior)
+```
+
+and find the predictions using the detailed method as described in overthinking box of section 4.4.3.4. The `rethinking::link()` function does that. For an example, see at the beginning of section 5.1 in the next chapter, R code 5.4.
+
+For this exercise, we will do it the long way. See practice 4H1 for an example on how to do this.
+
+```{r}
+preds <- list(n = 30L)
+preds$newdata <- data.frame(
+  weight_c = modelr::seq_range(data04H04$weight_c, n = preds$n)
+  ) %>%
+  mutate(weight_c2 = weight_c^2)
+```
+
+```{r}
+# get the simulated predictions
+set.seed(4)
+preds$sim <- purrr::map_dfr(
+  .x = preds$newdata$weight_c,
+  .f = function(x) {
+    mu <- samples$prior$a + samples$prior$b1 * x + samples$prior$b2 * x^2
+    y = rnorm(n = length(mu), mean = mu, sd = samples$prior$sigma)
+    data.frame(weight_c = x, height = y)
+    })
+# str(preds$sim)
+
+# the predictions intervals
+preds$intervals <- preds$sim %>%
+  group_by(weight_c) %>%
+  ggdist::mean_hdi(height, .width = 0.89)
+preds$intervals
+```
+
+```{r}
+ggplot(data = data04H04, aes(x = weight_c)) +
+  geom_line(data = preds$intervals, aes(y = height), size = 1, color = "purple") +
+  geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
+  scale_x_continuous( breaks = scales::breaks_extended(n = 7)) +
+  scale_color_paletteer_c("pals::kovesi.rainbow_bgyrm_35_85_c71") +
+  theme_minimal() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = c(0.85, 0.30)) +
+  labs(title = "quap fit with PRIOR - Practice 4H4", x = "weight", y = "height")
+```
+
+which shows that the prior is not so bad, it's shape aligns with the data, only the intercept actually need to be modified.
+
+> Conclusion: It's a very good idea to simulate the priors. It tells us if they make sense. It helps greatly in having a converging fit.
+
+### 4H4 using `brm` {.unnumbered}
+
+**Note the use of `sample_prior = TRUE`** to be able to obtain the prior samples. We use the prior $b1 \sim \mathcal{N}(0,1)$ instead of $\mathcal{LogNormal}$ which gives a much better prior in this case.
+
+```{r}
+a_file <- here::here("fits", "b04H04.rds")
+b04H04 <- readRDS(file = a_file)
+# b04H04 <- brms::brm(data = data04H04,
+#                    formula = height ~ 1 + weight_c + weight_c2,
+#                    family = gaussian,
+#                    prior =
+#                      c(prior(normal(138, 50), class = Intercept),
+#                        prior(normal(0, 1), class = b, coef = "weight_c"),
+#                        prior(normal(0, 1), class = b, coef = "weight_c2"),
+#                        prior(cauchy(0, 1), class = sigma)),
+#                    iter = 2000, warmup = 1000, chains = 4,
+#                    sample_prior = TRUE,
+#                    cores = detectCores(), seed = 4)
+# saveRDS(b04H04, file = a_file)
+brms::fixef(b04H04)
+```
+
+sample the prior, simulate the prior predictive distribution and calculate the intervals
+
+```{r}
+# sample the prior distribution
+samples <- list(n = 1000L,
+                width = 0.89,
+                probs = c(0.055, 0.945))
+samples$prior <- brms::prior_samples(b04H04)
+str(samples$prior)
+
+# simulate the the prior predictive distribution
+set.seed(4)
+preds$sim <- purrr::map_dfr(
+  .x = preds$newdata$weight_c,
+  .f = function(x) {
+    mu <- samples$prior$Intercept + samples$prior$b_weight_c * x +
+      samples$prior$b_weight_c2 * x^2
+    y = rnorm(n = length(mu), mean = mu, sd = samples$prior$sigma)
+    data.frame(weight_c = x, height = y)
+    })
+# str(preds$sim)
+
+# the predictions intervals
+preds$intervals <- preds$sim %>%
+  group_by(weight_c) %>%
+  ggdist::mean_hdi(height, .width = samples$width)
+# preds$intervals
+```
+
+get the posterior fit($\mu$) and prediction ($\hat{y}$)
+
+```{r}
+# get the fitted values
+samples$fitted <- fitted(b04H04, newdata = preds$newdata, 
+                         probs = samples$probs) %>%
+  data.frame() %>%
+  bind_cols(preds$newdata)
+# samples$fitted
+
+# get the predicted values
+samples$predict <- predict(b04H04, newdata = preds$newdata, 
+                         probs = samples$probs) %>%
+  data.frame() %>%
+  bind_cols(preds$newdata)
+# samples$predict
+```
+
+visualize the prior and posterior
+
+```{r}
+ggplot(data04H04, aes(x = weight_c)) +
+  geom_ribbon(data = samples$predict,
+              aes(ymin = Q5.5, ymax = Q94.5),
+              fill = "slategray1") +
+  geom_smooth(data = samples$fitted,
+              aes(y = Estimate, ymin = Q5.5, ymax = Q94.5),
+              stat = "identity",
+              fill = "slategray4", color = "steelblue", alpha = 2/3, size = 1) +
+  geom_line(data = preds$intervals, aes(x = weight_c, y = height), inherit.aes = FALSE, 
+            size = 1, linetype = "dashed", color = "purple") +
+  geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
+    theme_minimal() +
+  scale_x_continuous(breaks = scales::breaks_extended(n = 7),
+                     labels = function(x) round(x + mean(data04H04$weight), 0)) +
+  scale_color_paletteer_c("pals::kovesi.rainbow_bgyrm_35_85_c71") +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = c(0.80, 0.30)) +
+  labs(title = "BRMS fit with PRIOR - Practice 4H4",
+       subtitle = "Prior predictions = purple line", 
+       x = "weight", y = "height", color = "age")
+```
+
+## 4H5 {#prac4H5 .unnumbered}
+
+### The data
+
+```{r echo=FALSE}
+data("cherry_blossoms")
+data04H05 <- cherry_blossoms %>%
+  drop_na()
+skimr::skim(data04H05)
+```
+
+### The model
+
+There does not seem to be an obvious relations in the data. We will therefore use cubic splines again.
+
+$$
+\begin{align*}
+doy_i &\sim \mathcal{N}(\mu_i, \sigma) \\
+\mu_i &= \alpha + \sum_{k=1}^Kw_kB_{k, i} \\
+\alpha &\sim \mathcal{N}(100, 10) \\
+w_j &\sim \mathcal{N}(0, 10) \\
+\sigma &\sim \mathcal{Exp}(1)
+\end{align*}
+$$ \### Functions used {-}
+
+A function to create the plot
+
+```{r}
+# the basis plot used in 4M8
+plot_4H5 <- function(data, x_var = "temp", y_var = "doy", color_var = "year", 
+                     knots, colrs = "pals::isol") {
+  ggplot(data, aes(x = .data[[x_var]], y = .data[[y_var]], 
+                   color = .data[[color_var]])) +
+    geom_point(shape = 20, size = 2, alpha = 2/3) +
+    geom_vline(xintercept = knots, color = "slateblue", alpha = 1/2) +
+    scale_x_continuous(breaks = knots,
+                       labels = scales::label_number(accuracy = 0.1)) +
+  scale_color_paletteer_c(colrs) +
+  theme_classic() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = c(0.90, 0.85),
+        axis.text.x = element_text(size = rel(0.9))) +
+  labs(title = sprintf("Cherry Blossom in Japan with %d knots", length(knots)),
+       subtitle = "4H5")
+}
+```
+
+### The splines {.unnumbered}
+
+```{r}
+# the data for the spline
+splin <- list(knots = quantile(data04H05$temp, 
+                                probs = seq(from = 0, to = 1, length.out = 12)))
+# basis matrix
+splin$B <- get_B(x=data04H05$temp, knots=splin$knots, degree = 3L, intercept = TRUE)
+
+# the data structure used to fit
+splin$data <-
+  data04H05 %>%
+  mutate(B = splin$B)
+```
+
+### With `quap` {.unnumbered}
+
+See code example in R code 4.76, 4.77 and 4.78 in section4.5.2
+
+```{r}
+a_file <- here::here("fits", "m04H05.rds")
+m04H05 <- readRDS(a_file)
+# m04H05 <- quap(
+#   alist(
+#     D ~ dnorm(mu, sigma),
+#     mu <- a + B %*% w,
+#     a ~ dnorm(100, 10),
+#     w ~ dnorm(0, 10),
+#     sigma ~ dexp(1)
+#   ),
+#   data=list(D=data04H05$doy, B=splin$B),
+#   start=list(w=rep(0,ncol(splin$B)))
+# )
+# saveRDS(m04H05, file = a_file)
+```
+
+and the fitted values
+
+```{r}
+samples <- list(n = 100L)
+samples$fitted <- link(m04H05, n = samples$n) %>%
+  as.data.frame() %>%
+  pivot_longer(cols = everything(), names_to = "temp", values_to = "doy") %>%
+  mutate(temp = rep(data04H05$temp, times = samples$n))
+
+samples$intervals <- samples$fitted %>%
+  group_by(temp) %>%
+  ggdist::mean_qi(.width = 0.95)
+samples$intervals
+
+```
+
+```{r}
+plot_4H5(data04H05, knots = splin$knots) +
+  geom_smooth(data = samples$intervals,
+              mapping = aes(x = temp, y = doy, ymin = .lower, ymax = .upper),
+              inherit.aes = FALSE,
+              stat = "identity", color = "darksalmon", fill = "sandybrown")
+```
+
+### With `brm` {.unnumbered}
+
+```{r}
+a_file <- here::here("fits", "b04H05.rds")
+b04H05 <- readRDS(file = a_file)
+# b04H05 <- brm(data = splin$data,
+#       family = gaussian,
+#       doy ~ 1 + B,
+#       prior = c(prior(normal(100, 10), class = Intercept),
+#                 prior(normal(0, 10), class = b),
+#                 prior(exponential(1), class = sigma)),
+#       cores = detectCores(), seed = 4)
+# saveRDS(b04H05, file = a_file)
+summary(b04H05)
+```
+
+#### Fitted {.unnumbered}
+
+Sample the fit
+
+```{r}
+samples <- list()
+# the fitted values
+samples$fitted <- fitted(b04H05) %>%
+  as.data.frame() %>%
+  bind_cols(data04H05)
+```
+
+and plot the results
+
+```{r}
+plot_4H5(data04H05, knots = splin$knots) +
+  geom_smooth(data = samples$fitted,
+              mapping = aes(x = temp, y = Estimate, ymin = Q2.5, ymax = Q97.5),
+              inherit.aes = FALSE,
+              stat = "identity", color = "darksalmon", fill = "sandybrown")
+```
+
+## 4H6 {#prac4H6 .unnumbered}
+
+See 4.5.2 on splines for a discussion on the spline matrix. The following simulation is inspired by that section.
+
+The dimensions f the B matrix are explained in section 4.5.2, on p. 117, between R code 4.74 and R code 4.75.
+
+### Data {.unnumbered}
+
+```{r echo=FALSE}
+data("cherry_blossoms")
+data04H06 <- cherry_blossoms %>%
+  drop_na()
+skimr::skim(data04H06)
+```
+
+### Model {.unnumbered}
+
+$$
+\begin{align*}
+doy_i &\sim \mathcal{N}(\mu_i, \sigma) \\
+\mu_i &= \alpha + \sum_{k=1}^Kw_kB_{k, i} \\
+\alpha &\sim \mathcal{N}(100, 10) \\
+w_j &\sim \mathcal{N}(0, 10) \\
+\sigma &\sim \mathcal{Exp}(1)
+\end{align*}
+$$ \### Functions {-}
+
+We need to create functions to simulate the prior and plotting.
+
+The functions used for the simulation
+
+```{r}
+# simulate the prior using the B matrix
+sim_prior_gam <- function(B, n = 1000L,
+                          alpha_prior = list(mean = 0, sd = 10),
+                          weight_prior = list(mean = 0, sd = 10),
+                          sigma_prior = list(rate = 1)) {
+  
+  out <- sapply(X=seq_len(nrow(B)), FUN = function(i) {
+    # get a sample of intercept
+    intercept <- rnorm(n=1, alpha_prior$mean, sd=alpha_prior$sd)
+    # get the sample of coefficients, one for each coefficient
+    weights <- sapply(X = seq_len(ncol(B)), FUN = function(j) {
+      rnorm(n=1, mean=weight_prior$mean, sd=weight_prior$sd)
+      })
+    # multiply the weights by the B matrix for that specific observation
+    # to get the mu
+    mu <- intercept + B[i, ] %*% weights
+    # sample sigma
+    sigma <- rexp(n = 1, rate = sigma_prior$rate)
+    # sample the predictions with mu and sigma
+    rnorm(n=n, mean=mu, sd=sigma)
+  })
+  stopifnot(all.equal(dim(out), c(n, nrow(B))))
+  out
+}
+
+```
+
+### Prior distribution simulation {.unnumbered}
+
+The simulation with sd in priors set to 10
+
+```{r}
+# the list used to hold sim data and variables
+sim <- list(n = 1000L)
+# the knots used
+sim$knots <- quantile(data04H06$temp, probs = seq(from = 0, to = 1, length.out = 12))
+# the predictors used
+sim$preds <- seq_range(data04H06$temp, n = 20L)
+sim$B <- get_B(x=sim$preds, knots=sim$knots, degree = 3L, intercept = TRUE)
+# str(sim$B)
+
+sim$data <- sim_prior_gam(B=sim$B, n = sim$n,
+                          alpha_prior = list(mean = 100, sd = 10),
+                          weight_prior = list(mean = 0, sd = 10),
+                          sigma_prior = list(rate = 1))
+# str(sim$data)
+```
+
+```{r}
+# put data in log fomrat for use with stat_lineribbon
+sim$data_lng <- sim$data %>%
+  as.data.frame() %>%
+  pivot_longer(cols = everything(), names_to = "temp", values_to = "doy") %>%
+  mutate(temp = rep(sim$preds, times = sim$n))
+# str(sim$data_lng)
+
+# create dataframe of intervals for use with geom_smooth
+sim$intervals <- sim$data_lng %>%
+  group_by(temp) %>%
+  ggdist::mean_qi()
+# sim$intervals
+
+# the plot is made with both geom_smooth and stat_lineribbon which
+# can be used interchangeably. stat_lineribbon gives the better visual
+# to my taste
+p <- list()
+p$A <- ggplot(data=data04H06,mapping=aes(x = temp, y = doy, color = year)) +
+  geom_vline(xintercept = sim$knots, color = "slateblue", alpha = 1/2) +
+  # stat_lineribbon(data=sim$data_lng, mapping=aes(x = temp, y = doy),
+  #                 .width=c(0.5, 0.75, 0.95), size = 1, color = "lightcoral",
+  #                 inherit.aes = FALSE) +
+  geom_smooth(data=sim$intervals, inherit.aes = FALSE,
+              mapping=aes(x = temp, y = doy, ymin = .lower, ymax = .upper),
+              stat = "identity", size = 1, color = "royalblue", fill = "lightskyblue") +
+  geom_point(size = 1) +
+  scale_x_continuous(breaks = sim$knots, labels = scales::label_number(accuracy = 0.1)) +
+  scale_y_continuous(breaks = scales::breaks_extended(n = 5), 
+                     labels = scales::label_number(accuracy = 1),
+                     limits = c(30, 150)) +
+  scale_fill_paletteer_d("ggsci::amber_material") +
+  scale_color_paletteer_c("pals::isol") +
+  ggdist::theme_ggdist() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = "none",
+        axis.text.x = element_text(size = rel(0.9))) +
+  labs(title = sprintf("Cherry Blossoms: Prior distribution with %d knots", length(sim$knots)),
+       subtitle = "with weights' sd = 10")
+```
+
+The simulation with sd in priors set to 20
+
+```{r}
+# the list used to hold sim data and variables
+sim <- list(n = 1000L)
+# the knots used
+sim$knots <- quantile(data04H06$temp, probs = seq(from = 0, to = 1, length.out = 12))
+# the predictors used
+sim$preds <- seq_range(data04H06$temp, n = 20L)
+sim$B <- get_B(x=sim$preds, knots=sim$knots, degree = 3L, intercept = TRUE)
+# str(sim$B)
+
+sim$data <- sim_prior_gam(B=sim$B, n = sim$n,
+                          alpha_prior = list(mean = 100, sd = 10),
+                          weight_prior = list(mean = 0, sd = 20),
+                          sigma_prior = list(rate = 1))
+# str(sim$data)
+```
+
+```{r}
+# put data in log format for use with stat_lineribbon
+sim$data_lng <- sim$data %>%
+  as.data.frame() %>%
+  pivot_longer(cols = everything(), names_to = "temp", values_to = "doy") %>%
+  mutate(temp = rep(sim$preds, times = sim$n))
+# str(sim$data_lng)
+
+# create dataframe of intervals for use with geom_smooth
+sim$intervals <- sim$data_lng %>%
+  group_by(temp) %>%
+  ggdist::mean_qi()
+# sim$intervals
+
+# the plot is made with both geom_smooth and stat_lineribbon which
+# can be used interchangeably. stat_lineribbon gives the better visual
+# to my taste
+p$B <- ggplot(data=data04H06,mapping=aes(x = temp, y = doy, color = year)) +
+  geom_vline(xintercept = sim$knots, color = "slateblue", alpha = 1/2) +
+  # stat_lineribbon(data=sim$data_lng, mapping=aes(x = temp, y = doy),
+  #                 .width=c(0.5, 0.75, 0.95), size = 1, color = "lightcoral",
+  #                 inherit.aes = FALSE) +
+  geom_smooth(data=sim$intervals,
+              mapping=aes(x = temp, y = doy, ymin = .lower, ymax = .upper),
+              inherit.aes = FALSE,
+              stat = "identity", size = 1, color = "violetred", fill = "mistyrose") +
+  geom_point(size = 1) +
+  scale_x_continuous(breaks = sim$knots, labels = scales::label_number(accuracy = 0.1)) +
+  scale_y_continuous(breaks = scales::breaks_extended(n = 5), 
+                     labels = scales::label_number(accuracy = 1),
+                     limits = c(30, 150)) +
+  scale_fill_paletteer_d("ggsci::amber_material") +
+  scale_color_paletteer_c("pals::isol") +
+  ggdist::theme_ggdist() +
+  theme(title = element_text(color = "midnightblue"),
+        legend.position = "none",
+        axis.text.x = element_text(size = rel(0.9))) +
+  labs(title = sprintf("Cherry Blossoms: Prior distribution with %d knots", length(sim$knots)),
+       subtitle = "with weights' sd = 20")
+```
+
+and comparing the 2 plots
+
+```{r}
+p$A / p$B
+```
+
+Conclusion: The prior affect the weights the weights in the same manner as the priors affects regression coefficients. In the current example, by increasing the sd of the normally distributed prior we affect the variability of the weights.
+
+## 4H7 {#prac4H7 .unnumbered}
+
+```{r echo=FALSE}
+message("Practice 4H7 is missing in the second edition!")
+```
+
+## 4H8 {#prac4H8 .unnumbered}
+
+```{r}
+data("cherry_blossoms")
+data04H08 <- cherry_blossoms %>%
+  drop_na(doy)
+rm(cherry_blossoms)
+stopifnot(all.equal(dim(data04H08), c(827L, 5L)))
+skimr::skim(data04H08)
+```
+
+```{r}
+# use 15 knots as for model m4.7
+splin <- list(knots = quantile(data04H08$year, 
+                               probs = seq(from = 0, to = 1, length.out = 15L)))
+# must specify intercept = TRUE
+splin$B <- get_B(x = data04H08$year, knots = splin$knots,
+                 degree = 3L, intercept = TRUE)
+
+# data used to fit the model
+splin$data <- data04H08 %>%
+  mutate(B = splin$B)
+```
+
+The model is changed to remove the intercept which is **mu \<- B %*% w instead of*** *mu \<- a + B %*% w
+
+```{r}
+a_file <- here::here("fits", "m04H08.rds")
+m04H08 <- readRDS(a_file)
+# m04H08 <- quap(
+#   alist(
+#     D ~ dnorm(mu, sigma),
+#     mu <- B %*% w,
+#     w ~ dnorm(0, 10),
+#     sigma ~ dexp(1)
+#   ),
+#   data=list(D=data04H08$doy, B=splin$B),
+#   start=list(w=rep(0,ncol(splin$B)))
+# )
+# saveRDS(m04H08, file = a_file)
+```
+
+and the fitted values
+
+```{r}
+samples <- list(n = 100L)
+samples$fitted <- link(m04H08, n = samples$n) %>%
+  as.data.frame() %>%
+  pivot_longer(cols = everything(), names_to = "year", values_to = "doy") %>%
+  mutate(year = rep(data04H08$year, times = samples$n))
+
+samples$intervals <- samples$fitted %>%
+  group_by(year) %>%
+  ggdist::mean_qi(.width = 0.95)
+# samples$intervals
+```
+
+```{r}
+# we use the same plot function as in 4M8 above.
+plot_04M08(data04H08, knots = splin$knots) +
+  geom_smooth(data = samples$intervals,
+              mapping = aes(x = year, y = doy, ymin = .lower, ymax = .upper),
+              inherit.aes = FALSE,
+              stat = "identity", color = "blueviolet", fill = "violet")
+```
