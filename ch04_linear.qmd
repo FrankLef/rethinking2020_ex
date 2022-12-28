@@ -8,24 +8,28 @@ library(dplyr)
 library(tidyr)
 library(tidybayes)
 library(tidybayes.rethinking)
-library(posterior)
 library(modelr)
 library(simstudy)
 library(ggplot2)
 library(ggdist)
 library(patchwork)
 library(paletteer)
-library(gt)
 library(splines)
 ```
 
-## Notes {.unnumbered}
+```{r}
+#  For execution on a local, multicore CPU with excess RAM
+options(mc.cores = parallel::detectCores())
+#  To avoid recompilation of unchanged Stan programs
+rstan_options(auto_write = TRUE)
+```
 
-### `eflINLA` {.unnumbered}
+```{r}
+# The default theme is by the plot
+ggplot2::theme_set(ggdist::theme_ggdist())
+ggplot2::theme_update(title = element_text(color = "midnightblue"))
+```
 
-The `INLA` has its own object and conventions. The `eflINLA` is a project to develop functions mimicking `tidybayes` with `inla` objects. These are **not S3 methods** and they will be identified with the suffix `inla`, for example the `tidy_draws` equivalent is `tidy_draws_inla`.
-
-You can see the code behind each function by selecting it and pressing `F2`.
 
 ## 4E1 {#prac4E1 .unnumbered}
 
@@ -142,9 +146,7 @@ ggplot(sim04M01$data, mapping = aes(x = height)) +
                          name = "levels %",
                          labels = round(100 * sim04M01$widths, 0),
                          na.translate = FALSE) +
-  theme_ggdist() +
-  theme(legend.position = c(0.8, 0.8),
-        title = element_text(color = "midnightblue")) +
+  theme(legend.position = c(0.8, 0.8)) +
   labs(title = "4M1: Prior prediction of height", 
        subtitle = sprintf("sample size = %d", nrow(sim04M01$data)))
 ```
@@ -229,8 +231,8 @@ See section 4.4.2 for model m4.3. We add the centered weight to the data and cal
 
 ```{r}
 data(Howell1)
-data04M07 <- Howell1 %>%
-  filter(age  >= 18) %>%
+data04M07 <- Howell1 |>
+  filter(age  >= 18) |>
   mutate(weight_c = as.vector(scale(weight, center = TRUE, scale = FALSE)))
 rm(Howell1)
 skimr::skim(data04M07)
@@ -294,9 +296,7 @@ ggplot(sim04M07$data) +
                                 "observed" = "mediumseagreen")) +
   scale_x_continuous(breaks = scales::breaks_pretty(n = 7)) +
   coord_cartesian(xlim = c(50, 300)) +
-  ggdist::theme_ggdist() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = c(0.8, 0.8)) +
+  theme(legend.position = c(0.8, 0.8)) +
   labs(title = paste0(
     "4M7: Comparing prior predictive distribution vs observed distribution",
     "\n", "vertical lines = mode"),
@@ -400,8 +400,8 @@ post04M07 <- within(post04M07, {
   quap_all <- bind_rows("ctr" = quap_ctr, "nat" = quap_nat, .id ="model")
   
   # long format used for plotting
-  quap_all <- quap_all %>%
-    group_by(model) %>%
+  quap_all <- quap_all |>
+    group_by(model) |>
     tidybayes::gather_variables()
   })
 ```
@@ -413,7 +413,6 @@ ggplot(post04M07$quap_all, aes(x = .value, color = model)) +
   ggdist::stat_slabinterval(point_interval = mode_qi, fill = "antiquewhite") +
   scale_color_paletteer_d("ggthemes::calc") +
   facet_grid(model ~ .variable, scales = "free") +
-  theme_ggdist() +
   theme(legend.position = "right") +
   labs(title = "4M7: Posterior comparisons by model using quap",
        subtitle = sprintf("sample size = %d", post04M07$ndraws),
@@ -438,7 +437,7 @@ pred04M07 <- within(pred04M07, {
     newdata = quap_ctr$newdata,
     ndraws = ndraws)
   # get the intervals
-  quap_ctr$intrvl <- median_qi(quap_ctr$draws) %>%
+  quap_ctr$intrvl <- median_qi(quap_ctr$draws) |>
   # put weight on natural scale to enable comparisons
     mutate(weight = weight_c + mean(data04M07$weight))
   
@@ -468,8 +467,8 @@ ggplot(pred04M07$quap_all$intrvl,
   geom_pointinterval(position = position_dodge(width = 0.5),
                      fatten_point = 2, size = 1) +
   scale_color_paletteer_d("ggthemes::calc") +
-  theme_minimal() +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "bottom",
+        panel.grid.major.y = element_line()) +
   labs(title = "Centered vs Natural Predictions",
        subtitle = "4M7 using quap")
 ```
@@ -546,8 +545,8 @@ post04M07 <- within(post04M07, {
   brm_all <- bind_rows("ctr" = brm_ctr, "nat" = brm_nat, .id ="model")
   
   # long format used for plotting
-  brm_all_lng <- brm_all %>%
-    group_by(model) %>%
+  brm_all_lng <- brm_all |>
+    group_by(model) |>
     tidybayes::gather_variables() |>
     mutate(.variable = if_else(.variable == "b_weight_c", "b_weight", .variable))
   })
@@ -562,7 +561,6 @@ post04M07$brm_all_lng |>
   ggdist::stat_slabinterval(point_interval = mode_qi, fill = "antiquewhite") +
   scale_color_paletteer_d("ggthemes::calc") +
   facet_grid(model ~ .variable, scales = "free") +
-  theme_ggdist() +
   theme(legend.position = "right") +
   labs(title = "4M7: Posterior comparisons by model using brm",
        subtitle = sprintf("sample size = %d", post04M07$ndraws),
@@ -584,7 +582,7 @@ pred04M07 <- within(pred04M07, {
     newdata = brm_ctr$newdata,
     ndraws = ndraws)
   # get the intervals
-  brm_ctr$intrvl <- median_qi(brm_ctr$draws) %>%
+  brm_ctr$intrvl <- median_qi(brm_ctr$draws) |>
   # put weight on natural scale to enable comparisons
     mutate(weight = weight_c + mean(data04M07$weight))
   
@@ -614,8 +612,8 @@ ggplot(pred04M07$brm_all$intrvl,
   geom_pointinterval(position = position_dodge(width = 0.5),
                      fatten_point = 2, size = 1) +
   scale_color_paletteer_d("ggthemes::calc") +
-  theme_minimal() +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "bottom",
+        panel.grid.major.y = element_line()) +
   labs(title = "Centered vs Natural Predictions",
        subtitle = "4M7 using brm")
 ```
@@ -628,26 +626,13 @@ We remove the rows with `NA` in the `doy` variable.
 
 ```{r}
 data("cherry_blossoms")
-data04M08 <- cherry_blossoms %>%
+data04M08 <- cherry_blossoms |>
   drop_na(doy)
 rm(cherry_blossoms)
 stopifnot(all.equal(dim(data04M08), c(827L, 5L)))
 skimr::skim(data04M08, year, doy, temp)
 ```
 
-This function will be used to create the B matrix. See R code 4.74 in section 4.5.2 of the textbook.
-
-```{r}
-# create the B (basis) matrix
-get_B <- function(x, knots, degree = 3L, intercept = TRUE) {
-  out <- splines::bs(x = x, 
-                     knots = knots[-c(1, length(knots))], 
-                     degree = degree, 
-                     intercept = intercept)
-  stopifnot(all.equal(dim(out), c(length(x), length(knots) + degree - 1)))
-  out
-}
-```
 
 ### Model {.unnumbered}
 
@@ -663,12 +648,28 @@ $$
 
 ### Functions {.unnumbered}
 
+This function will be used to create the B matrix. See R code 4.74 in section 4.5.2 of the textbook.
+
+```{r}
+# create the B (basis) matrix
+get_B <- function(x, knots, degree = 3L, intercept = TRUE) {
+  out <- splines::bs(x = x, 
+                     knots = knots[-c(1, length(knots))], 
+                     degree = degree, 
+                     intercept = intercept)
+  stopifnot(all.equal(dim(out), c(length(x), length(knots) + degree - 1)))
+  out
+}
+```
+
+
 A function to create the plot used in this practice
 
 ```{r}
 # the basic plot used in 4M8
 plot_04M08 <- function(data, x_var = "year", y_var = "doy", color_var = "temp", 
-                       knots = 15L, colrs = "grDevices::SunsetDark",
+                       knots = 15L, leg_pos = c(0.05, 0.8), 
+                       colrs = "grDevices::SunsetDark",
                        titles = list()) {
   
   ggplot(data, aes(x = .data[[x_var]], y = .data[[y_var]], 
@@ -677,13 +678,13 @@ plot_04M08 <- function(data, x_var = "year", y_var = "doy", color_var = "temp",
     geom_vline(xintercept = knots, color = "slateblue", alpha = 1/2) +
     scale_x_continuous(breaks = knots, labels = scales::label_number(big.mark = "")) +
   scale_color_paletteer_c(colrs) +
-  theme_classic() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = c(0.05, 0.8),
+  theme(legend.position = leg_pos,
         axis.text.x = element_text(size = rel(0.9))) +
   labs(title = titles$title, subtitle = titles$subtitle)
 }
 ```
+
+
 
 ### a) Knots = 15, $w_j \sim \mathcal{N}(0, 10)$
 
@@ -696,14 +697,14 @@ splinA <- within(splinA, {
   knots = quantile(data$year, 
                    probs = seq(from = 0, to = 1, length.out = 15L))
   B <- get_B(x = data$year, knots = knots, degree = 3L, intercept = TRUE)
-  bias <- B %>%
-    as.data.frame() %>%
-    setNames(sprintf("B%02d", seq_len(ncol(.)))) %>%
-    mutate(year = data$year) %>%
+  bias <- B |>
+    as.data.frame() |>
+    setNames(sprintf("B%02d", seq_len(ncol(B)))) |>
+    mutate(year = data$year) |>
     pivot_longer(cols = -year, names_to = "bias_func", values_to = "bias")
   # the last column is a matrix column, with same nb of rows as the other
   # columns but with a column including 17 subcolumns (!)
-  data <- data %>%
+  data <- data |>
     mutate(B = B)
 })
 ```
@@ -734,14 +735,14 @@ lpred04M08 <- within(lpred04M08,{
   data <- data04M08
   A <- list()
   A$newdata <- data.frame(
-    year = seq_range(data$year, n = 30)) %>%
+    year = seq_range(data$year, n = 30)) |>
     # NOTE: must use mutate() to add B matrix "as is"
     mutate(B = get_B(x = year, knots = splinA$knots, 
                      degree = 3, intercept = TRUE))
   
   # linpred_draws is the same as fitted
-  A$intrvl <- linpred_draws(fit04M08$splinA, newdata = A$newdata) %>%
-    as.data.frame() %>%
+  A$intrvl <- linpred_draws(fit04M08$splinA, newdata = A$newdata) |>
+    as.data.frame() |>
     select(-B) |>
     group_by(year) |>
     mean_qi()
@@ -775,14 +776,14 @@ splinB <- within(splinB, {
   knots = quantile(data$year, 
                    probs = seq(from = 0, to = 1, length.out = 25L))
   B <- get_B(x = data$year, knots = knots, degree = 3L, intercept = TRUE)
-  bias <- B %>%
-    as.data.frame() %>%
-    setNames(sprintf("B%02d", seq_len(ncol(.)))) %>%
-    mutate(year = data$year) %>%
+  bias <- B |>
+    as.data.frame() |>
+    setNames(sprintf("B%02d", seq_len(ncol(B)))) |>
+    mutate(year = data$year) |>
     pivot_longer(cols = -year, names_to = "bias_func", values_to = "bias")
   # the last column is a matrix column, with same nb of rows as the other
   # columns but with a column including 17 subcolumns (!)
-  data <- data %>%
+  data <- data |>
     mutate(B = B)
 })
 ```
@@ -810,14 +811,14 @@ summary(fit04M08$splinB)
 lpred04M08 <- within(lpred04M08,{
   B <- list()
   B$newdata <- data.frame(
-    year = seq_range(data$year, n = 30)) %>%
+    year = seq_range(data$year, n = 30)) |>
     # NOTE: must use mutate() to add B matrix "as is"
     mutate(B = get_B(x = year, knots = splinB$knots, 
                      degree = 3L, intercept = TRUE))
   
   # linpred_draws is the same as fitted
-  B$intrvl <- linpred_draws(fit04M08$splinB, newdata = B$newdata) %>%
-    as.data.frame() %>%
+  B$intrvl <- linpred_draws(fit04M08$splinB, newdata = B$newdata) |>
+    as.data.frame() |>
     select(-B) |>
     group_by(year) |>
     mean_qi()
@@ -847,14 +848,14 @@ splinC <- within(splinC, {
   knots = quantile(data$year, 
                    probs = seq(from = 0, to = 1, length.out = 25L))
   B <- get_B(x = data$year, knots = knots, degree = 3L, intercept = TRUE)
-  bias <- B %>%
-    as.data.frame() %>%
-    setNames(sprintf("B%02d", seq_len(ncol(.)))) %>%
-    mutate(year = data$year) %>%
+  bias <- B |>
+    as.data.frame() |>
+    setNames(sprintf("B%02d", seq_len(ncol(B)))) |>
+    mutate(year = data$year) |>
     pivot_longer(cols = -year, names_to = "bias_func", values_to = "bias")
   # the last column is a matrix column, with same nb of rows as the other
   # columns but with a column including 17 subcolumns (!)
-  data <- data %>%
+  data <- data |>
     mutate(B = B)
 })
 ```
@@ -882,14 +883,14 @@ summary(fit04M08$splinC)
 lpred04M08 <- within(lpred04M08,{
   C <- list()
   C$newdata <- data.frame(
-    year = seq_range(data$year, n = 30)) %>%
+    year = seq_range(data$year, n = 30)) |>
     # NOTE: must use mutate() to add B matrix "as is"
     mutate(B = get_B(x = year, knots = splinC$knots, 
                      degree = 3L, intercept = TRUE))
   
   # linpred_draws is the same as fitted
-  C$intrvl <- linpred_draws(fit04M08$splinC, newdata = C$newdata) %>%
-    as.data.frame() %>%
+  C$intrvl <- linpred_draws(fit04M08$splinC, newdata = C$newdata) |>
+    as.data.frame() |>
     select(-B) |>
     group_by(year) |>
     mean_qi()
@@ -933,13 +934,13 @@ However this is not visually obvious when looking at the scatter plot. See just 
 
 ```{r}
 summ <- list()
-summ$A <- data.frame(model = "A", fixef(fit04M08$splinA)) %>%
+summ$A <- data.frame(model = "A", fixef(fit04M08$splinA)) |>
   tibble::rownames_to_column(var = "variable")
-summ$B <- data.frame(model = "B", fixef(fit04M08$splinB)) %>%
+summ$B <- data.frame(model = "B", fixef(fit04M08$splinB)) |>
   tibble::rownames_to_column(var = "variable")
-summ$C <- data.frame(model = "C", fixef(fit04M08$splinC)) %>%
+summ$C <- data.frame(model = "C", fixef(fit04M08$splinC)) |>
   tibble::rownames_to_column(var = "variable")
-summ$data <- bind_rows(summ$A, summ$B, summ$C) %>%
+summ$data <- bind_rows(summ$A, summ$B, summ$C) |>
   mutate(variable = factor(variable,
                            levels = c("Intercept", sprintf("B%d", 1:27)),
                            ordered = TRUE))
@@ -948,10 +949,9 @@ ggplot(summ$data[summ$data$variable != "Intercept", ],
        aes(x = variable, y = Estimate, ymin = Q2.5, ymax = Q97.5, color = model)) +
   geom_pointinterval(position = position_dodge(width = 1/2)) +
   scale_color_paletteer_d("futurevisions::cancri") +
-  ggthemes::theme_hc() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = "bottom",
+  theme(legend.position = "bottom",
         legend.direction = "horizontal",
+        panel.grid.major.y = element_line(),
         axis.text.x = element_text(size = rel(0.85))) +
   labs(title = "Comparing the models' coefficients (excludding intercept)",
        subtitle = "4M8",
@@ -971,8 +971,8 @@ To better visualize, we could look at the models coefficient after aliging the k
 
 ```{r}
 data("Howell1")
-data04H01 <- Howell1 %>%
-  filter(age >= 18) %>%
+data04H01 <- Howell1 |>
+  filter(age >= 18) |>
   mutate(weight_c = scale(weight, center = TRUE, scale = FALSE))
 rm("Howell1")
 stopifnot(identical(dim(data04H01), c(352L, 5L)))
@@ -1065,10 +1065,10 @@ pred04H01 <- within(pred04H01, {
     .id = "ind")
   
   # the predictions intervals
-  intrvl <- sim %>%
-    group_by(weight) %>%
-    ggdist::mean_hdi(height, .width = 0.89) %>%
-    mutate(individual = names(weights)[order(weights)]) %>%
+  intrvl <- sim |>
+    group_by(weight) |>
+    ggdist::mean_hdi(height, .width = 0.89) |>
+    mutate(individual = names(weights)[order(weights)]) |>
     relocate(individual)
 })
 # glimpse(pred04H01$intr)
@@ -1080,8 +1080,8 @@ Load the data
 
 ```{r ch04_data04H02}
 data("Howell1")
-data04H02 <- Howell1 %>%
-  filter(age < 18) %>%
+data04H02 <- Howell1 |>
+  filter(age < 18) |>
   mutate(weight_c = scale(weight, center = TRUE, scale = FALSE))
 rm("Howell1")
 # there should be 192 rows
@@ -1165,10 +1165,10 @@ lpred04H02 <- within(lpred04H02, {
   # compute the confidence intervals
   quap$intrvl <- apply(X = quap$draws, MARGIN = 2, FUN = function(x) {
     c("mean" = mean(x), rethinking::HPDI(x))
-    }) %>%
-    t() %>%
-    bind_cols(weight = weights) %>%
-  as.data.frame() %>%
+    }) |>
+    t() |>
+    bind_cols(weight = weights) |>
+  as.data.frame() |>
     relocate(weight)
   })
 ```
@@ -1191,10 +1191,10 @@ pred04H02 <- within(pred04H02, {
   quap$intrvl <- apply(X = quap$draws, MARGIN = 2, 
         FUN = function(x) {
           c("mean" = mean(x), rethinking::HPDI(x))
-          }) %>% 
-    t() %>%
-    bind_cols(weight = weights) %>%
-    as.data.frame() %>%
+          }) |> 
+    t() |>
+    bind_cols(weight = weights) |>
+    as.data.frame() |>
     relocate(weight)
 })
 # pred04H02$quap$intrvl
@@ -1212,9 +1212,7 @@ ggplot(data = data04H02, aes(x = weight)) +
   geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
   scale_x_continuous( breaks = scales::breaks_extended(n = 7)) +
   scale_color_paletteer_c("pals::kovesi.linear_kryw_5_100_c67") +
-  theme_minimal() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = c(0.1, 0.8)) +
+  theme(legend.position = c(0.1, 0.8)) +
   labs(title = "quap fit - Practice 4H2", x = "weight", y = "height")
 ```
 
@@ -1237,23 +1235,6 @@ fit04H02$brm <- xfun::cache_rds({
     cores = detectCores(), seed = 4)},
   file = "ch04_fit04H02_brm")
 tictoc::toc()
-```
-
-```{r}
-# a_file <- here::here("fits", "b04H02.rds")  # save to rds file
-# b04H02 <- readRDS(file = a_file)
-# b04H02 <- brms::brm(data = data04H02,
-#                          formula = height ~ 1 + weight,
-#                          family = gaussian(),
-#                          prior = c(
-#                            prior(normal(100, 50), class = Intercept),
-#                            prior(lognormal(0, 2), class = b, lb = 0),
-#                            prior(cauchy(0, 1), class = sigma)),
-#                          iter = 2000, warmup = 1000, chains = 4,
-#                          cores = detectCores(), seed = 4)
-# saveRDS(b04H02, file = a_file)
-# b04H02_fixf <- brms::fixef(b04H02)
-# b04H02_fixf
 ```
 
 ```{r}
@@ -1300,9 +1281,7 @@ ggplot(data = data04H02, aes(x = weight)) +
   geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
   scale_x_continuous( breaks = scales::breaks_extended(n = 7)) +
   scale_color_paletteer_c("pals::kovesi.linear_kryw_5_100_c67") +
-  theme_minimal() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = c(0.1, 0.8)) +
+  theme(legend.position = c(0.1, 0.8)) +
   labs(title = "BRMS fit - Practice 4H2", x = "weight", y = "height")
 ```
 
@@ -1318,7 +1297,7 @@ The data is
 
 ```{r ch04_data04H03}
 data("Howell1")
-data04H03 <- Howell1 %>%
+data04H03 <- Howell1 |>
   mutate(weight_c = scale(weight, center = TRUE, scale = FALSE),
          weight_log = log(weight))
 rm("Howell1")
@@ -1385,10 +1364,10 @@ lpred04H03 <- within(lpred04H03, {
   # compute the confidence intervals
   quap$intrvl <- apply(X = quap$draws, MARGIN = 2, FUN = function(x) {
     c("mean" = mean(x), rethinking::HPDI(x))
-    }) %>%
-    t() %>%
-    bind_cols(weight = weights) %>%
-  as.data.frame() %>%
+    }) |>
+    t() |>
+    bind_cols(weight = weights) |>
+  as.data.frame() |>
     relocate(weight)
   })
 # glimpse(lpred04H03$quap$intrvl)
@@ -1412,10 +1391,10 @@ pred04H03 <- within(pred04H03, {
   quap$intrvl <- apply(X = quap$draws, MARGIN = 2, 
         FUN = function(x) {
           c("mean" = mean(x), rethinking::HPDI(x))
-          }) %>% 
-    t() %>%
-    bind_cols(weight = weights) %>%
-    as.data.frame() %>%
+          }) |> 
+    t() |>
+    bind_cols(weight = weights) |>
+    as.data.frame() |>
     relocate(weight)
 })
 # glimpse(pred04H03$quap$intrvl)
@@ -1435,9 +1414,7 @@ ggplot(data = data04H03, aes(x = weight)) +
   geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
   scale_x_continuous( breaks = scales::breaks_extended(n = 7)) +
   scale_color_paletteer_c("pals::kovesi.linear_kry_5_98_c75") +
-  theme_minimal() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = c(0.1, 0.8)) +
+  theme(legend.position = c(0.1, 0.8)) +
   labs(title = "quap fit - Practice 4H3", x = "weight", y = "height")
 ```
 
@@ -1506,9 +1483,7 @@ ggplot(data = data04H03, aes(x = weight)) +
   geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
   scale_x_continuous( breaks = scales::breaks_extended(n = 7)) +
   scale_color_paletteer_c("pals::kovesi.linear_kry_5_98_c75") +
-  theme_minimal() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = c(0.1, 0.8)) +
+  theme(legend.position = c(0.1, 0.8)) +
   labs(title = "BRMS fit - Practice 4H3", x = "weight", y = "height")
 ```
 
@@ -1520,7 +1495,7 @@ The data is as in section 4.5.1. This practice is using techniques that are illu
 
 ```{r ch04_data04H04}
 data("Howell1")
-data04H04 <- Howell1 %>%
+data04H04 <- Howell1 |>
   mutate(weight_c = scale(weight, center = TRUE, scale = FALSE),
          weight_c2 = weight_c ^ 2)
 stopifnot(identical(dim(data04H04), c(544L, 6L)))
@@ -1574,9 +1549,10 @@ prior04H04 <- list()
 prior04H04 <- within(prior04H04,{
   ndraws <-1000L
   quap <- list()
-  quap$draws <- extract.prior(fit04H04$quap, n = ndraws) %>%
-    as.data.frame() %>%
-    mutate(sigma = rexp(n = nrow(.), rate = 1))
+  quap$draws <- extract.prior(fit04H04$quap, n = ndraws) |>
+    as.data.frame() |>
+    mutate(sigma = rexp(n = n(), rate = 1)) |>
+    identity()
 })
 # glimpse(prior04H04$quap$draws)
 ```
@@ -1600,8 +1576,8 @@ prior04H04 <- within(prior04H04, {
       data.frame(weight_c = x, height = y)
     })
   
-  quap$intrvl <- quap$sim %>%
-    group_by(weight_c) %>%
+  quap$intrvl <- quap$sim |>
+    group_by(weight_c) |>
     ggdist::mean_hdi(height, .width = 0.89)
 })
 # prior04H04$quap$intrvl
@@ -1613,9 +1589,7 @@ ggplot(data = data04H04, aes(x = weight_c)) +
   geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
   scale_x_continuous( breaks = scales::breaks_extended(n = 7)) +
   scale_color_paletteer_c("pals::kovesi.rainbow_bgyrm_35_85_c71") +
-  theme_minimal() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = c(0.85, 0.30)) +
+  theme(legend.position = c(0.85, 0.30)) +
   labs(title = "quap fit with PRIOR - Practice 4H4", x = "weight", y = "height")
 ```
 
@@ -1665,8 +1639,8 @@ prior04H04 <- within(prior04H04, {
       data.frame(weight_c = x, height = y)
     })
   
-  brm$intrvl <- brm$sim %>%
-    group_by(weight_c) %>%
+  brm$intrvl <- brm$sim |>
+    group_by(weight_c) |>
     ggdist::mean_hdi(height, .width = 0.89)
 })
 # glimpse(prior04H04$brm$intrvl)
@@ -1678,9 +1652,7 @@ ggplot(data = data04H04, aes(x = weight_c)) +
   geom_point(aes(y = height, color = age), shape = 20, size = 2, alpha = 2/3) +
   scale_x_continuous( breaks = scales::breaks_extended(n = 7)) +
   scale_color_paletteer_c("pals::kovesi.rainbow_bgyrm_35_85_c71") +
-  theme_minimal() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = c(0.85, 0.30)) +
+  theme(legend.position = c(0.85, 0.30)) +
   labs(title = "brm fit with PRIOR - Practice 4H4", x = "weight", y = "height")
 ```
 
@@ -1690,7 +1662,7 @@ ggplot(data = data04H04, aes(x = weight_c)) +
 
 ```{r ch04_data04H05}
 data("cherry_blossoms")
-data04H05 <- cherry_blossoms %>%
+data04H05 <- cherry_blossoms |>
   drop_na()
 rm(cherry_blossoms)
 skimr::skim(data04H05)
@@ -1710,7 +1682,7 @@ w_j &\sim \mathcal{N}(0, 10) \\
 \end{align*}
 $$
 
-\### Functions used {-}
+### Functions used {-}
 
 A function to create the plot
 
@@ -1725,9 +1697,7 @@ plot_4H5 <- function(data, x_var = "temp", y_var = "doy", color_var = "year",
     scale_x_continuous(breaks = knots,
                        labels = scales::label_number(accuracy = 0.1)) +
   scale_color_paletteer_c(colrs) +
-  theme_classic() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = c(0.90, 0.85),
+  theme(legend.position = c(0.90, 0.85),
         axis.text.x = element_text(size = rel(0.9))) +
   labs(title = titles$title, subtitle = titles$subtitle)
 }
@@ -1742,7 +1712,7 @@ splin <- within(splin, {
   knots = quantile(data04H05$temp, 
                    probs = seq(from = 0, to = 1, length.out = 12))
   B <- get_B(x = data04H05$temp, knots = knots, degree = 3L, intercept = TRUE)
-  data <- data04H05 %>%
+  data <- data04H05 |>
     mutate(B = B)
 })
 ```
@@ -1778,13 +1748,13 @@ lpred04H05 <- within(lpred04H05, {
   
   quap <- list()
   # See the overthinking box in section 4.4.3.4 to explain `rethinking::link()'
-  quap$draws <- rethinking::link(fit04H05$quap, n = ndraws) %>%
-    as.data.frame() %>%
-    pivot_longer(cols = everything(), names_to = "temp", values_to = "doy") %>%
+  quap$draws <- rethinking::link(fit04H05$quap, n = ndraws) |>
+    as.data.frame() |>
+    pivot_longer(cols = everything(), names_to = "temp", values_to = "doy") |>
     mutate(temp = rep(data04H05$temp, times = ndraws))
   # compute the confidence intervals
-  quap$intrvl <- quap$draws %>%
-    group_by(temp) %>%
+  quap$intrvl <- quap$draws |>
+    group_by(temp) |>
     ggdist::mean_qi(.width = 0.95)
   })
 # glimpse(lpred04H05$quap$draws)
@@ -1826,15 +1796,15 @@ tictoc::toc()
 lpred04H05 <- within(lpred04H05, {
   
   newdata <- data.frame(
-    temp = seq_range(data04H05$temp, n = 30)) %>%
+    temp = seq_range(data04H05$temp, n = 30)) |>
     # NOTE: must use mutate() to add B matrix "as is"
     mutate(B = get_B(x = temp, knots = splin$knots,
                      degree = 3, intercept = TRUE))
 
   brm <- list()
   # linpred_draws is the same as fitted()
-  brm$intrvl <- linpred_draws(fit04H05$brm, newdata = newdata) %>%
-    as.data.frame() %>%
+  brm$intrvl <- linpred_draws(fit04H05$brm, newdata = newdata) |>
+    as.data.frame() |>
     select(-B) |>
     group_by(temp) |>
     mean_qi()
@@ -1866,7 +1836,7 @@ The dimensions f the B matrix are explained in section 4.5.2, on p. 117, between
 
 ```{r data04H06}
 data("cherry_blossoms")
-data04H06 <- cherry_blossoms %>%
+data04H06 <- cherry_blossoms |>
   drop_na()
 skimr::skim(data04H06)
 ```
@@ -1883,7 +1853,7 @@ w_j &\sim \mathcal{N}(0, 10) \\
 \end{align*}
 $$
 
-\### Functions {-}
+### Functions {-}
 
 We need to create functions to simulate the prior and plotting.
 
@@ -1941,14 +1911,14 @@ sim04H06 <- within(sim04H06, {
 ```{r}
 sim04H06 <- within(sim04H06, {
   # put data in log format for use with stat_lineribbon
-  data_lng <- data %>%
-    as.data.frame() %>%
-    pivot_longer(cols = everything(), names_to = "temp", values_to = "doy") %>%
+  data_lng <- data |>
+    as.data.frame() |>
+    pivot_longer(cols = everything(), names_to = "temp", values_to = "doy") |>
     mutate(temp = rep(preds, times = n))
   
   # create dataframe of intervals for use with geom_smooth
-  intrvl <- data_lng %>%
-    group_by(temp) %>%
+  intrvl <- data_lng |>
+    group_by(temp) |>
     ggdist::mean_qi()
 })
 ```
@@ -1969,9 +1939,7 @@ plot04H06$A <- ggplot(data=data04H06,mapping=aes(x = temp, y = doy, color = year
                      limits = c(30, 150)) +
   scale_fill_paletteer_d("ggsci::amber_material") +
   scale_color_paletteer_c("pals::isol") +
-  ggdist::theme_ggdist() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = "none",
+  theme(legend.position = "none",
         axis.text.x = element_text(size = rel(0.9))) +
   labs(title = sprintf("Cherry Blossoms: Prior distribution with %d knots", length(sim04H06$knots)),
        subtitle = "with weights' sd = 10")
@@ -2000,14 +1968,14 @@ sim04H06 <- within(sim04H06, {
 ```{r}
 sim04H06 <- within(sim04H06, {
   # put data in log format for use with stat_lineribbon
-  data_lng <- data %>%
-    as.data.frame() %>%
-    pivot_longer(cols = everything(), names_to = "temp", values_to = "doy") %>%
+  data_lng <- data |>
+    as.data.frame() |>
+    pivot_longer(cols = everything(), names_to = "temp", values_to = "doy") |>
     mutate(temp = rep(preds, times = n))
   
   # create dataframe of intervals for use with geom_smooth
-  intrvl <- data_lng %>%
-    group_by(temp) %>%
+  intrvl <- data_lng |>
+    group_by(temp) |>
     ggdist::mean_qi()
 })
 ```
@@ -2027,9 +1995,7 @@ plot04H06$B <- ggplot(data=data04H06,mapping=aes(x = temp, y = doy, color = year
                      limits = c(30, 150)) +
   scale_fill_paletteer_d("ggsci::amber_material") +
   scale_color_paletteer_c("pals::isol") +
-  ggdist::theme_ggdist() +
-  theme(title = element_text(color = "midnightblue"),
-        legend.position = "none",
+  theme(legend.position = "none",
         axis.text.x = element_text(size = rel(0.9))) +
   labs(title = sprintf("Cherry Blossoms: Prior distribution with %d knots", length(sim04H06$knots)),
        subtitle = "with weights' sd = 20")
@@ -2053,16 +2019,97 @@ message("Practice 4H7 is missing in the second edition!")
 
 ## 4H8 {#prac4H8 .unnumbered}
 
+To answer the question about what needs to be done to make the model without
+intercept work, here is the suggested answer
+
+1. Use argument `intercept = FALSE` in `spline::bs()`
+2. Change the formula to `doy ~ 0 + B` from `doy ~ 1 + B`
+3. Remove the prior `prior(normal(100, 10), class = Intercept)`
+
+
 ```{r data04H08}
 data("cherry_blossoms")
-data04H08 <- cherry_blossoms %>%
+data04H08 <- cherry_blossoms |>
   drop_na(doy)
 rm(cherry_blossoms)
 stopifnot(identical(dim(data04H08), c(827L, 5L)))
 skimr::skim(data04H08)
 ```
 
+Define the knots
+
 ```{r}
-#| echo: false
-message("TODO")
+knots <- quantile(data04H08$year, probs = seq(from = 0, to = 1, length.out = 15))
+knots
 ```
+the code `knots[-c(1, nknots)]` is required because `bs` places knots at 
+the boundaries by default, so we have to remove them.
+
+> Important: Since we don't have an intercept, we set the parameter
+`intercept = FALSE` in `spline::bs()`.
+
+
+```{r}
+B <- splines::bs(x = data04H08$year, 
+                 knots = knots, 
+                 degree = 3, intercept = FALSE)
+# str(B)
+```
+
+We first append the matrix to the data in one column. See @kurtz2020b 
+on this data structure. We need to use `mutate` to keep the matrix as is.
+
+
+```{r}
+data04H08 <- data04H08 |>
+  mutate(B = B)
+```
+
+
+and we fit *without the intercept*
+
+```{r ch04_fit04H08}
+tictoc::tic(msg = sprintf("run time of %s, use the cache.", "60 secs."))
+fit04H08 <- xfun::cache_rds({
+  brm(data = data04H08,
+      formula = doy ~ 0 + B,
+      family = gaussian,
+      prior = c(prior(normal(0, 10), class = b),
+                prior(exponential(1), class = sigma)),
+      cores = detectCores(), seed = 4)},
+  file = "ch04_fit04H08")
+tictoc::toc()
+```
+get the fitted value (linear prediction in tidybayes)
+
+```{r}
+lpred04H08 <- list()
+lpred04H08 <- within(lpred04H08, {
+  newdata <- data04H08
+  draws <- linpred_draws(fit04H08, newdata = newdata)
+  intrvl <- draws |>
+    ungroup() |>
+    select(-B) |>
+    group_by(year) |>
+    mean_qi(.linpred)
+  })
+```
+
+
+
+```{r}
+clrs <- unclass(paletteer::paletteer_d("futurevisions::cancri"))
+ggplot(lpred04H08$intrvl, aes(x = year, y = .linpred)) +
+  geom_vline(xintercept = knots, color = "slateblue", alpha = 1/2) +
+  geom_point(data04H08, mapping = aes(x = year, y = doy, color = temp),
+             inherit.aes = FALSE) +
+  geom_lineribbon(aes(x = year, y = .linpred, ymin = .lower, ymax = .upper),
+                  color = "blueviolet", fill = "cornflowerblue", alpha = 1/2) +
+  scale_x_continuous(breaks = knots, labels = scales::label_number(big.mark = "")) +
+  scale_color_gradientn(colors = clrs) +
+  theme(legend.position = "none") +
+  labs(title = "4H8: Cheery Blossom Spline Without Intercept",
+       subtitle = sprintf("%d observations.", nrow(data04H08)),
+       x = "year", y = "doy")
+```
+
