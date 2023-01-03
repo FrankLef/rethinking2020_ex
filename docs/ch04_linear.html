@@ -420,19 +420,20 @@ P(\mu, \sigma \mid \textbf{y}) &amp;=
 </div>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(sim04M01<span class="sc">$</span>data, <span class="at">mapping =</span> <span class="fu">aes</span>(<span class="at">x =</span> height)) <span class="sc">+</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  ggdist<span class="sc">::</span><span class="fu">stat_halfeye</span>(<span class="fu">aes</span>(<span class="at">fill =</span> <span class="fu">after_stat</span>(<span class="fu">cut_cdf_qi</span>(cdf, <span class="at">.width =</span> sim04M01<span class="sc">$</span>widths))),</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  ggdist<span class="sc">::</span><span class="fu">stat_halfeye</span>(<span class="fu">aes</span>(<span class="at">fill =</span> <span class="fu">after_stat</span>(level)),</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                       <span class="at">point_interval =</span> median_qi,</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>                       <span class="at">color =</span> <span class="st">"darkorange"</span>) <span class="sc">+</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> sim04M01<span class="sc">$</span>breaks_x,</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>                     <span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">label_number</span>(<span class="at">accuracy =</span> <span class="fl">0.1</span>)) <span class="sc">+</span></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_paletteer_d</span>(<span class="st">"ggsci::indigo_material"</span>,</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>                         <span class="at">direction =</span> <span class="dv">1</span>,</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>                         <span class="at">name =</span> <span class="st">"levels %"</span>,</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>                         <span class="at">labels =</span> <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> sim04M01<span class="sc">$</span>widths, <span class="dv">0</span>),</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>                         <span class="at">na.translate =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="fu">c</span>(<span class="fl">0.8</span>, <span class="fl">0.8</span>)) <span class="sc">+</span></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"4M1: Prior prediction of height"</span>, </span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="fu">sprintf</span>(<span class="st">"sample size = %d"</span>, <span class="fu">nrow</span>(sim04M01<span class="sc">$</span>data)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>                       <span class="at">color =</span> <span class="st">"darkorange"</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>                       <span class="at">.width =</span> <span class="fu">c</span>(<span class="fl">0.67</span>, <span class="fl">0.95</span>, <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> sim04M01<span class="sc">$</span>breaks_x,</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>                     <span class="at">labels =</span> scales<span class="sc">::</span><span class="fu">label_number</span>(<span class="at">accuracy =</span> <span class="fl">0.1</span>)) <span class="sc">+</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_paletteer_d</span>(<span class="st">"ggsci::indigo_material"</span>,</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>                         <span class="at">direction =</span> <span class="dv">1</span>,</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>                         <span class="at">name =</span> <span class="st">"levels %"</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>                         <span class="at">labels =</span> <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> sim04M01<span class="sc">$</span>widths, <span class="dv">0</span>),</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>                         <span class="at">na.translate =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="fu">c</span>(<span class="fl">0.8</span>, <span class="fl">0.8</span>)) <span class="sc">+</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"4M1: Prior prediction of height"</span>, </span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="fu">sprintf</span>(<span class="st">"sample size = %d"</span>, <span class="fu">nrow</span>(sim04M01<span class="sc">$</span>data)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Warning: Using the `size` aesthietic with geom_segment was deprecated in ggplot2 3.4.0.
 ℹ Please use the `linewidth` aesthetic instead.</code></pre>
@@ -516,7 +517,7 @@ mu_i = \alpha + \beta \cdot year_i \\
 <div class="cell">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(Howell1)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>data04M07 <span class="ot">&lt;-</span> Howell1 <span class="sc">|&gt;</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age  <span class="sc">&gt;=</span> <span class="dv">18</span>) <span class="sc">|&gt;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(age <span class="sc">&gt;=</span> <span class="dv">18</span>) <span class="sc">|&gt;</span></span>
 <span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">weight_c =</span> <span class="fu">as.vector</span>(<span class="fu">scale</span>(weight, <span class="at">center =</span> <span class="cn">TRUE</span>, <span class="at">scale =</span> <span class="cn">FALSE</span>)))</span>
 <span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(Howell1)</span>
 <span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>skimr<span class="sc">::</span><span class="fu">skim</span>(data04M07)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -746,7 +747,7 @@ height_i &amp;\sim \mathcal{N}(\mu_i, \sigma) \\
 <span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04M07_quap_ctr"</span>)</span>
 <span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 1 secs., use the cache.: 0.01 sec elapsed</code></pre>
+<pre><code>run time of 1 secs., use the cache.: 0 sec elapsed</code></pre>
 </div>
 </div>
 <p>and the summary is</p>
@@ -777,7 +778,7 @@ sigma   5.0718812 0.19115481</code></pre>
 <span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04M07_quap_nat"</span>)</span>
 <span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 1 secs., use the cache.: 0.01 sec elapsed</code></pre>
+<pre><code>run time of 1 secs., use the cache.: 0.02 sec elapsed</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">precis</span>(fit04M07<span class="sc">$</span>quap_nat)[, <span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -872,37 +873,24 @@ sigma  0.0251 -0.0249  1.0000</code></pre>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>pred04M07 <span class="ot">&lt;-</span> <span class="fu">within</span>(pred04M07, {</span>
 <span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  ndraws<span class="ot">&lt;-</span> 500L</span>
 <span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  quap_ctr <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
-<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  quap_ctr<span class="sc">$</span>newdata <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">weight_c =</span> <span class="fu">seq_range</span>(data04M07<span class="sc">$</span>weight_c, <span class="at">n =</span> 30L))</span>
-<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>  quap_ctr<span class="sc">$</span>draws <span class="ot">&lt;-</span> <span class="fu">predicted_draws</span>(</span>
-<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    fit04M07<span class="sc">$</span>quap_ctr,</span>
-<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">newdata =</span> quap_ctr<span class="sc">$</span>newdata,</span>
-<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">ndraws =</span> ndraws)</span>
-<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>  <span class="co"># get the intervals</span></span>
-<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>  quap_ctr<span class="sc">$</span>intrvl <span class="ot">&lt;-</span> <span class="fu">median_qi</span>(quap_ctr<span class="sc">$</span>draws) <span class="sc">|&gt;</span></span>
-<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># put weight on natural scale to enable comparisons</span></span>
-<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">weight =</span> weight_c <span class="sc">+</span> <span class="fu">mean</span>(data04M07<span class="sc">$</span>weight))</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  quap_ctr <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">weight_c =</span> <span class="fu">seq_range</span>(data04M07<span class="sc">$</span>weight_c, <span class="at">n =</span> 30L)) <span class="sc">|&gt;</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">add_predicted_draws</span>(fit04M07<span class="sc">$</span>quap_ctr, <span class="at">ndraws =</span> ndraws) <span class="sc">|&gt;</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">median_qi</span>() <span class="sc">|&gt;</span></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># put weight on natural scale to enable comparisons</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">weight =</span> weight_c <span class="sc">+</span> <span class="fu">mean</span>(data04M07<span class="sc">$</span>weight))</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>  quap_nat <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">weight =</span> <span class="fu">seq_range</span>(data04M07<span class="sc">$</span>weight, <span class="at">n =</span> 30L)) <span class="sc">|&gt;</span></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">add_predicted_draws</span>(fit04M07<span class="sc">$</span>quap_nat, <span class="at">ndraws =</span> ndraws) <span class="sc">|&gt;</span></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">median_qi</span>()</span>
 <span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>  quap_nat <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
-<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>  quap_nat<span class="sc">$</span>newdata <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">weight =</span> <span class="fu">seq_range</span>(data04M07<span class="sc">$</span>weight, <span class="at">n =</span> 30L))</span>
-<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>  quap_nat<span class="sc">$</span>draws <span class="ot">&lt;-</span> <span class="fu">predicted_draws</span>(</span>
-<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>    fit04M07<span class="sc">$</span>quap_nat, </span>
-<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">newdata =</span> quap_nat<span class="sc">$</span>newdata, </span>
-<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">ndraws =</span> ndraws)</span>
-<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># get the intervals</span></span>
-<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>  quap_nat<span class="sc">$</span>intrvl <span class="ot">&lt;-</span> <span class="fu">median_qi</span>(quap_nat<span class="sc">$</span>draws)</span>
-<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># put all intervals together</span></span>
-<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>  quap_all <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
-<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>  quap_all<span class="sc">$</span>intrvl <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
-<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ctr"</span><span class="ot">=</span> quap_ctr<span class="sc">$</span>intrvl, <span class="st">"nat"</span> <span class="ot">=</span> quap_nat<span class="sc">$</span>intrvl, <span class="at">.id =</span> <span class="st">"model"</span>)</span>
-<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>  })</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>  quap_all <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="st">"ctr"</span><span class="ot">=</span> quap_ctr, <span class="st">"nat"</span> <span class="ot">=</span> quap_nat, <span class="at">.id =</span> <span class="st">"model"</span>)</span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>  })</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>and the plot is</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(pred04M07<span class="sc">$</span>quap_all<span class="sc">$</span>intrvl, </span>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(pred04M07<span class="sc">$</span>quap_all, </span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">aes</span>(<span class="at">x =</span> weight, <span class="at">y =</span> .prediction, <span class="at">ymin =</span> .lower, <span class="at">ymax =</span> .upper,</span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> model)) <span class="sc">+</span></span>
 <span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_pointinterval</span>(<span class="at">position =</span> <span class="fu">position_dodge</span>(<span class="at">width =</span> <span class="fl">0.5</span>),</span>
@@ -911,7 +899,8 @@ sigma  0.0251 -0.0249  1.0000</code></pre>
 <span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>,</span>
 <span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>        <span class="at">panel.grid.major.y =</span> <span class="fu">element_line</span>()) <span class="sc">+</span></span>
 <span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Centered vs Natural Predictions"</span>,</span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"4M7 using quap"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"4M7 using quap"</span>,</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"predicted height"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <p><img src="ch04_linear_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid" width="672"></p>
 </div>
@@ -938,7 +927,7 @@ sigma  0.0251 -0.0249  1.0000</code></pre>
 <span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04M07_brm_ctr"</span>)</span>
 <span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 65 secs., use the cache.: 0.19 sec elapsed</code></pre>
+<pre><code>run time of 65 secs., use the cache.: 0.14 sec elapsed</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -980,7 +969,7 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
 <span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04M07_brm_nat"</span>)</span>
 <span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 60 secs., use the cache.: 0.2 sec elapsed</code></pre>
+<pre><code>run time of 60 secs., use the cache.: 0.15 sec elapsed</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -1069,37 +1058,25 @@ Removed 4000 rows containing missing values (`stat_slabinterval()`).</code></pre
 <div class="cell">
 <div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="co"># the predictions for the centered model</span></span>
 <span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>pred04M07 <span class="ot">&lt;-</span> <span class="fu">within</span>(pred04M07, {</span>
-<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  brm_ctr <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
-<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>  brm_ctr<span class="sc">$</span>newdata <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">weight_c =</span> <span class="fu">seq_range</span>(data04M07<span class="sc">$</span>weight_c, <span class="at">n =</span> 30L))</span>
-<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>  brm_ctr<span class="sc">$</span>draws <span class="ot">&lt;-</span> <span class="fu">predicted_draws</span>(</span>
-<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>    fit04M07<span class="sc">$</span>brm_ctr,</span>
-<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">newdata =</span> brm_ctr<span class="sc">$</span>newdata,</span>
-<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">ndraws =</span> ndraws)</span>
-<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># get the intervals</span></span>
-<span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a>  brm_ctr<span class="sc">$</span>intrvl <span class="ot">&lt;-</span> <span class="fu">median_qi</span>(brm_ctr<span class="sc">$</span>draws) <span class="sc">|&gt;</span></span>
-<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># put weight on natural scale to enable comparisons</span></span>
-<span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">weight =</span> weight_c <span class="sc">+</span> <span class="fu">mean</span>(data04M07<span class="sc">$</span>weight))</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  brm_ctr <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">weight_c =</span> <span class="fu">seq_range</span>(data04M07<span class="sc">$</span>weight_c, <span class="at">n =</span> 30L)) <span class="sc">|&gt;</span></span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">add_predicted_draws</span>(fit04M07<span class="sc">$</span>brm_ctr, <span class="at">ndraws =</span> ndraws) <span class="sc">|&gt;</span></span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">median_qi</span>() <span class="sc">|&gt;</span></span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># put weight on natural scale to enable comparisons</span></span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">weight =</span> weight_c <span class="sc">+</span> <span class="fu">mean</span>(data04M07<span class="sc">$</span>weight))</span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>  brm_nat <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">weight =</span> <span class="fu">seq_range</span>(data04M07<span class="sc">$</span>weight, <span class="at">n =</span> 30L)) <span class="sc">|&gt;</span></span>
+<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">add_predicted_draws</span>(fit04M07<span class="sc">$</span>brm_nat, <span class="at">ndraws =</span> ndraws) <span class="sc">|&gt;</span></span>
+<span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">median_qi</span>()</span>
 <span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a>  brm_nat <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
-<span id="cb39-16"><a href="#cb39-16" aria-hidden="true" tabindex="-1"></a>  brm_nat<span class="sc">$</span>newdata <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb39-17"><a href="#cb39-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">weight =</span> <span class="fu">seq_range</span>(data04M07<span class="sc">$</span>weight, <span class="at">n =</span> 30L))</span>
-<span id="cb39-18"><a href="#cb39-18" aria-hidden="true" tabindex="-1"></a>  brm_nat<span class="sc">$</span>draws <span class="ot">&lt;-</span> <span class="fu">predicted_draws</span>(</span>
-<span id="cb39-19"><a href="#cb39-19" aria-hidden="true" tabindex="-1"></a>    fit04M07<span class="sc">$</span>brm_nat, </span>
-<span id="cb39-20"><a href="#cb39-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">newdata =</span> brm_nat<span class="sc">$</span>newdata, </span>
-<span id="cb39-21"><a href="#cb39-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">ndraws =</span> ndraws)</span>
-<span id="cb39-22"><a href="#cb39-22" aria-hidden="true" tabindex="-1"></a>  <span class="co"># get the intervals</span></span>
-<span id="cb39-23"><a href="#cb39-23" aria-hidden="true" tabindex="-1"></a>  brm_nat<span class="sc">$</span>intrvl <span class="ot">&lt;-</span> <span class="fu">median_qi</span>(brm_nat<span class="sc">$</span>draws)</span>
-<span id="cb39-24"><a href="#cb39-24" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb39-25"><a href="#cb39-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># put all intervals together</span></span>
-<span id="cb39-26"><a href="#cb39-26" aria-hidden="true" tabindex="-1"></a>  brm_all<span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
-<span id="cb39-27"><a href="#cb39-27" aria-hidden="true" tabindex="-1"></a>  brm_all<span class="sc">$</span>intrvl <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(</span>
-<span id="cb39-28"><a href="#cb39-28" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ctr"</span><span class="ot">=</span> brm_ctr<span class="sc">$</span>intrvl, <span class="st">"nat"</span> <span class="ot">=</span> brm_nat<span class="sc">$</span>intrvl, <span class="at">.id =</span> <span class="st">"model"</span>)</span>
-<span id="cb39-29"><a href="#cb39-29" aria-hidden="true" tabindex="-1"></a>  })</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># put all intervals together</span></span>
+<span id="cb39-16"><a href="#cb39-16" aria-hidden="true" tabindex="-1"></a>  brm_all <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(<span class="st">"ctr"</span><span class="ot">=</span> brm_ctr, <span class="st">"nat"</span> <span class="ot">=</span> brm_nat, <span class="at">.id =</span> <span class="st">"model"</span>)</span>
+<span id="cb39-17"><a href="#cb39-17" aria-hidden="true" tabindex="-1"></a>  })</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>and the plot</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(pred04M07<span class="sc">$</span>brm_all<span class="sc">$</span>intrvl, </span>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(pred04M07<span class="sc">$</span>brm_all, </span>
 <span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>       <span class="fu">aes</span>(<span class="at">x =</span> weight, <span class="at">y =</span> .prediction, <span class="at">ymin =</span> .lower, <span class="at">ymax =</span> .upper,</span>
 <span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> model)) <span class="sc">+</span></span>
 <span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_pointinterval</span>(<span class="at">position =</span> <span class="fu">position_dodge</span>(<span class="at">width =</span> <span class="fl">0.5</span>),</span>
@@ -1320,7 +1297,7 @@ w_j &amp;\sim \mathcal{N}(0, 10) \\
 <span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04M08_splinA"</span>)</span>
 <span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 60 secs., use the cache.: 0.21 sec elapsed</code></pre>
+<pre><code>run time of 60 secs., use the cache.: 0.19 sec elapsed</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -1439,7 +1416,7 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
 <span id="cb53-10"><a href="#cb53-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04M08_splinB"</span>)</span>
 <span id="cb53-11"><a href="#cb53-11" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 60 secs., use the cache.: 0.24 sec elapsed</code></pre>
+<pre><code>run time of 60 secs., use the cache.: 0.22 sec elapsed</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -1563,7 +1540,7 @@ scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
 <span id="cb61-10"><a href="#cb61-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04M08_splinC"</span>)</span>
 <span id="cb61-11"><a href="#cb61-11" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 60 secs., use the cache.: 0.35 sec elapsed</code></pre>
+<pre><code>run time of 60 secs., use the cache.: 0.23 sec elapsed</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -1783,22 +1760,26 @@ sigma   5.0364393 0.18784197   4.7362315   5.336647</code></pre>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb79"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a>pred04H01 <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
 <span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a>pred04H01 <span class="ot">&lt;-</span> <span class="fu">within</span>(pred04H01, {</span>
-<span id="cb79-3"><a href="#cb79-3" aria-hidden="true" tabindex="-1"></a>  weights <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">46.95</span>, <span class="fl">43.72</span>, <span class="fl">64.78</span>, <span class="fl">32.59</span>, <span class="fl">54.63</span>)</span>
-<span id="cb79-4"><a href="#cb79-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>(weights) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"ind"</span>, <span class="fu">seq_along</span>(weights))</span>
-<span id="cb79-5"><a href="#cb79-5" aria-hidden="true" tabindex="-1"></a>  newdata <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="st">"weight"</span> <span class="ot">=</span> weights,</span>
-<span id="cb79-6"><a href="#cb79-6" aria-hidden="true" tabindex="-1"></a>                        <span class="at">row.names =</span> <span class="fu">names</span>(weights))</span>
-<span id="cb79-7"><a href="#cb79-7" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb79-8"><a href="#cb79-8" aria-hidden="true" tabindex="-1"></a>  sim <span class="ot">&lt;-</span> <span class="fu">sapply</span>(<span class="at">X =</span> newdata<span class="sc">$</span>weight, <span class="at">FUN =</span> <span class="cf">function</span>(x) {</span>
-<span id="cb79-9"><a href="#cb79-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">set.seed</span>(<span class="dv">173</span>)  <span class="co"># for fun: balanced prime number</span></span>
-<span id="cb79-10"><a href="#cb79-10" aria-hidden="true" tabindex="-1"></a>    mu <span class="ot">&lt;-</span> post04H01<span class="sc">$</span>a <span class="sc">+</span> post04H01<span class="sc">$</span>b <span class="sc">*</span> x</span>
-<span id="cb79-11"><a href="#cb79-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rnorm</span>(<span class="at">n =</span> <span class="fu">length</span>(mu), <span class="at">mean =</span> mu, <span class="at">sd =</span> post04H01<span class="sc">$</span>sigma)</span>
-<span id="cb79-12"><a href="#cb79-12" aria-hidden="true" tabindex="-1"></a>    })</span>
-<span id="cb79-13"><a href="#cb79-13" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb79-14"><a href="#cb79-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># get the confidence intervals</span></span>
-<span id="cb79-15"><a href="#cb79-15" aria-hidden="true" tabindex="-1"></a>  intrvl <span class="ot">&lt;-</span> <span class="fu">apply</span>(<span class="at">X =</span> sim, <span class="at">MARGIN =</span> <span class="dv">2</span>, <span class="at">FUN =</span> ggdist<span class="sc">::</span>mean_hdi, <span class="at">.width =</span> <span class="fl">0.89</span>)</span>
-<span id="cb79-16"><a href="#cb79-16" aria-hidden="true" tabindex="-1"></a>  intrvl <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, intrvl) <span class="sc">|&gt;</span></span>
-<span id="cb79-17"><a href="#cb79-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">row.names =</span> <span class="fu">names</span>(weights))</span>
-<span id="cb79-18"><a href="#cb79-18" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb79-3"><a href="#cb79-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># set the weights</span></span>
+<span id="cb79-4"><a href="#cb79-4" aria-hidden="true" tabindex="-1"></a>  weights <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">46.95</span>, <span class="fl">43.72</span>, <span class="fl">64.78</span>, <span class="fl">32.59</span>, <span class="fl">54.63</span>)</span>
+<span id="cb79-5"><a href="#cb79-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># name the weights</span></span>
+<span id="cb79-6"><a href="#cb79-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>(weights) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"ind"</span>, <span class="fu">seq_along</span>(weights))</span>
+<span id="cb79-7"><a href="#cb79-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># create the newdata</span></span>
+<span id="cb79-8"><a href="#cb79-8" aria-hidden="true" tabindex="-1"></a>  newdata <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="st">"weight"</span> <span class="ot">=</span> weights,</span>
+<span id="cb79-9"><a href="#cb79-9" aria-hidden="true" tabindex="-1"></a>                        <span class="at">row.names =</span> <span class="fu">names</span>(weights))</span>
+<span id="cb79-10"><a href="#cb79-10" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb79-11"><a href="#cb79-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># simulate for each weight</span></span>
+<span id="cb79-12"><a href="#cb79-12" aria-hidden="true" tabindex="-1"></a>  sim <span class="ot">&lt;-</span> <span class="fu">sapply</span>(<span class="at">X =</span> newdata<span class="sc">$</span>weight, <span class="at">FUN =</span> <span class="cf">function</span>(x) {</span>
+<span id="cb79-13"><a href="#cb79-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">set.seed</span>(<span class="dv">173</span>)  <span class="co"># for fun: balanced prime number</span></span>
+<span id="cb79-14"><a href="#cb79-14" aria-hidden="true" tabindex="-1"></a>    mu <span class="ot">&lt;-</span> post04H01<span class="sc">$</span>a <span class="sc">+</span> post04H01<span class="sc">$</span>b <span class="sc">*</span> x</span>
+<span id="cb79-15"><a href="#cb79-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rnorm</span>(<span class="at">n =</span> <span class="fu">length</span>(mu), <span class="at">mean =</span> mu, <span class="at">sd =</span> post04H01<span class="sc">$</span>sigma)</span>
+<span id="cb79-16"><a href="#cb79-16" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb79-17"><a href="#cb79-17" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb79-18"><a href="#cb79-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># get the confidence intervals for each weight</span></span>
+<span id="cb79-19"><a href="#cb79-19" aria-hidden="true" tabindex="-1"></a>  intrvl <span class="ot">&lt;-</span> <span class="fu">apply</span>(<span class="at">X =</span> sim, <span class="at">MARGIN =</span> <span class="dv">2</span>, <span class="at">FUN =</span> ggdist<span class="sc">::</span>mean_hdi, <span class="at">.width =</span> <span class="fl">0.89</span>)</span>
+<span id="cb79-20"><a href="#cb79-20" aria-hidden="true" tabindex="-1"></a>  intrvl <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, intrvl) <span class="sc">|&gt;</span></span>
+<span id="cb79-21"><a href="#cb79-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">data.frame</span>(<span class="at">row.names =</span> <span class="fu">names</span>(weights))</span>
+<span id="cb79-22"><a href="#cb79-22" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="using-tidyverse" class="level3 unnumbered">
@@ -2028,7 +2009,7 @@ height_i &amp;\sim \mathcal{N}(\mu_i, \sigma) \\
 <span id="cb82-15"><a href="#cb82-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04H02_quap"</span>)</span>
 <span id="cb82-16"><a href="#cb82-16" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 1 secs., use the cache.: 0 sec elapsed</code></pre>
+<pre><code>run time of 1 secs., use the cache.: 0.01 sec elapsed</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -2060,7 +2041,7 @@ sigma  8.261618 0.40864709  7.608521  8.914715</code></pre>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb88"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb88-1"><a href="#cb88-1" aria-hidden="true" tabindex="-1"></a>lpred04H02 <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
 <span id="cb88-2"><a href="#cb88-2" aria-hidden="true" tabindex="-1"></a>lpred04H02 <span class="ot">&lt;-</span> <span class="fu">within</span>(lpred04H02, {</span>
-<span id="cb88-3"><a href="#cb88-3" aria-hidden="true" tabindex="-1"></a>  ndraws <span class="ot">&lt;-</span> 1000L</span>
+<span id="cb88-3"><a href="#cb88-3" aria-hidden="true" tabindex="-1"></a>  ndraws <span class="ot">&lt;-</span> 200L</span>
 <span id="cb88-4"><a href="#cb88-4" aria-hidden="true" tabindex="-1"></a>  weights <span class="ot">&lt;-</span> modelr<span class="sc">::</span><span class="fu">seq_range</span>(data04H02<span class="sc">$</span>weight, <span class="at">n =</span> 30L)</span>
 <span id="cb88-5"><a href="#cb88-5" aria-hidden="true" tabindex="-1"></a>  newdata <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">weight =</span> weights)</span>
 <span id="cb88-6"><a href="#cb88-6" aria-hidden="true" tabindex="-1"></a>  </span>
@@ -2082,7 +2063,7 @@ sigma  8.261618 0.40864709  7.608521  8.914715</code></pre>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb89"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb89-1"><a href="#cb89-1" aria-hidden="true" tabindex="-1"></a>pred04H02 <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
 <span id="cb89-2"><a href="#cb89-2" aria-hidden="true" tabindex="-1"></a>pred04H02 <span class="ot">&lt;-</span> <span class="fu">within</span>(pred04H02, {</span>
-<span id="cb89-3"><a href="#cb89-3" aria-hidden="true" tabindex="-1"></a>  ndraws <span class="ot">&lt;-</span> 1000L</span>
+<span id="cb89-3"><a href="#cb89-3" aria-hidden="true" tabindex="-1"></a>  ndraws <span class="ot">&lt;-</span> 200L</span>
 <span id="cb89-4"><a href="#cb89-4" aria-hidden="true" tabindex="-1"></a>  weights <span class="ot">&lt;-</span> modelr<span class="sc">::</span><span class="fu">seq_range</span>(data04H02<span class="sc">$</span>weight, <span class="at">n =</span> 30L)</span>
 <span id="cb89-5"><a href="#cb89-5" aria-hidden="true" tabindex="-1"></a>  newdata <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">weight =</span> weights)</span>
 <span id="cb89-6"><a href="#cb89-6" aria-hidden="true" tabindex="-1"></a>  </span>
@@ -2146,7 +2127,7 @@ sigma  8.261618 0.40864709  7.608521  8.914715</code></pre>
 <span id="cb92-13"><a href="#cb92-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04H02_brm"</span>)</span>
 <span id="cb92-14"><a href="#cb92-14" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 1 secs., use the cache.: 0.25 sec elapsed</code></pre>
+<pre><code>run time of 1 secs., use the cache.: 0.22 sec elapsed</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -2504,7 +2485,7 @@ sigma   5.138479 0.1560052   4.889153   5.387805</code></pre>
 <span id="cb107-13"><a href="#cb107-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04H03_brm"</span>)</span>
 <span id="cb107-14"><a href="#cb107-14" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 60 secs., use the cache.: 0.32 sec elapsed</code></pre>
+<pre><code>run time of 60 secs., use the cache.: 0.24 sec elapsed</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -2753,7 +2734,7 @@ h_i &amp;\sim \mathcal{N}(\mu_i, \sigma)\\
 <span id="cb115-14"><a href="#cb115-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04H04_quap"</span>)</span>
 <span id="cb115-15"><a href="#cb115-15" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 1 secs., use the cache.: 0.01 sec elapsed</code></pre>
+<pre><code>run time of 1 secs., use the cache.: 0.02 sec elapsed</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -2769,7 +2750,7 @@ b2  -0.03883204 0.0006141831  -0.03981362  -0.03785046</code></pre>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb119"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb119-1"><a href="#cb119-1" aria-hidden="true" tabindex="-1"></a>prior04H04 <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
 <span id="cb119-2"><a href="#cb119-2" aria-hidden="true" tabindex="-1"></a>prior04H04 <span class="ot">&lt;-</span> <span class="fu">within</span>(prior04H04,{</span>
-<span id="cb119-3"><a href="#cb119-3" aria-hidden="true" tabindex="-1"></a>  ndraws <span class="ot">&lt;-</span>1000L</span>
+<span id="cb119-3"><a href="#cb119-3" aria-hidden="true" tabindex="-1"></a>  ndraws <span class="ot">&lt;-</span> 500L</span>
 <span id="cb119-4"><a href="#cb119-4" aria-hidden="true" tabindex="-1"></a>  quap <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
 <span id="cb119-5"><a href="#cb119-5" aria-hidden="true" tabindex="-1"></a>  quap<span class="sc">$</span>draws <span class="ot">&lt;-</span> <span class="fu">extract.prior</span>(fit04H04<span class="sc">$</span>quap, <span class="at">n =</span> ndraws) <span class="sc">|&gt;</span></span>
 <span id="cb119-6"><a href="#cb119-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.data.frame</span>() <span class="sc">|&gt;</span></span>
@@ -2838,7 +2819,7 @@ b2  -0.03883204 0.0006141831  -0.03981362  -0.03785046</code></pre>
 <span id="cb122-14"><a href="#cb122-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04H04_brm"</span>)</span>
 <span id="cb122-15"><a href="#cb122-15" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 60 secs., use the cache.: 0.25 sec elapsed</code></pre>
+<pre><code>run time of 60 secs., use the cache.: 0.28 sec elapsed</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -3096,14 +3077,14 @@ w_j &amp;\sim \mathcal{N}(0, 10) \\
 <span id="cb130-14"><a href="#cb130-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04H05_quap"</span>)</span>
 <span id="cb130-15"><a href="#cb130-15" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 1 secs., use the cache.: 0.02 sec elapsed</code></pre>
+<pre><code>run time of 1 secs., use the cache.: 0.01 sec elapsed</code></pre>
 </div>
 </div>
 <p>and the fitted values with their interval</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb132"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb132-1"><a href="#cb132-1" aria-hidden="true" tabindex="-1"></a>lpred04H05 <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
 <span id="cb132-2"><a href="#cb132-2" aria-hidden="true" tabindex="-1"></a>lpred04H05 <span class="ot">&lt;-</span> <span class="fu">within</span>(lpred04H05, {</span>
-<span id="cb132-3"><a href="#cb132-3" aria-hidden="true" tabindex="-1"></a>  ndraws <span class="ot">&lt;-</span> 1000L</span>
+<span id="cb132-3"><a href="#cb132-3" aria-hidden="true" tabindex="-1"></a>  ndraws <span class="ot">&lt;-</span> 500L</span>
 <span id="cb132-4"><a href="#cb132-4" aria-hidden="true" tabindex="-1"></a>  </span>
 <span id="cb132-5"><a href="#cb132-5" aria-hidden="true" tabindex="-1"></a>  quap <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
 <span id="cb132-6"><a href="#cb132-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># See the overthinking box in section 4.4.3.4 to explain `rethinking::link()'</span></span>
@@ -3161,7 +3142,7 @@ $ B          &lt;bs[,14]&gt; &lt;bs[26 x 14]&gt;</code></pre>
 <span id="cb136-10"><a href="#cb136-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04H05_brm"</span>)</span>
 <span id="cb136-11"><a href="#cb136-11" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 60 secs., use the cache.: 0.27 sec elapsed</code></pre>
+<pre><code>run time of 60 secs., use the cache.: 0.31 sec elapsed</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -3714,7 +3695,7 @@ w_j &amp;\sim \mathcal{N}(0, 10) \\
 <span id="cb155-9"><a href="#cb155-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">file =</span> <span class="st">"ch04_fit04H08"</span>)</span>
 <span id="cb155-10"><a href="#cb155-10" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>run time of 60 secs., use the cache.: 0.11 sec elapsed</code></pre>
+<pre><code>run time of 60 secs., use the cache.: 0.14 sec elapsed</code></pre>
 </div>
 </div>
 <p>get the fitted value (linear prediction in tidybayes)</p>

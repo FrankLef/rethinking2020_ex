@@ -57,13 +57,9 @@ calc_post_water <- function(obs, grid_size, label) {
     # standardize the posterior by dividing by the sum of its possible values
     post_grid <- post_grid / sum(post_grid)
     # add param grid and build a dataframe
-    post_grid <- data.frame(param = param_grid, 
-                            post = post_grid,
-                            label = rep(label, times = grid_size),
-                            stringsAsFactors = FALSE)
-    
-    return(post_grid)
-        
+    data.frame(param = param_grid, 
+               post = post_grid,
+               label = rep(label, times = grid_size), stringsAsFactors = FALSE)
 }
 ```
 
@@ -136,12 +132,10 @@ calc_post_water <- function(obs, grid_size, label) {
     # standardize the posterior by dividing by the sum of its possible values
     post_grid <- post_grid / sum(post_grid)
     # add param grid and build a dataframe
-    post_grid <- data.frame(param = param_grid, 
-                            post = post_grid,
-                            label = rep(label, times = grid_size),
-                            stringsAsFactors = FALSE)
-    
-    return(post_grid)
+    data.frame(param = param_grid, 
+               post = post_grid,
+               label = rep(label, times = grid_size),
+               stringsAsFactors = FALSE)
 }
 ```
 

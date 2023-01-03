@@ -13,28 +13,45 @@ library(paletteer)
 ```
 
 
+The default theme used by `ggplot2`
 
 ```{r}
-p_grid <- seq(from = 0, to = 1, length.out = 1000)
-prior <- rep(1, length(p_grid))
-likelihood <- dbinom(x = 6, size = 9, prob = p_grid)
-posterior <- likelihood * prior
-posterior <- posterior / sum(posterior)
-set.seed(100)
-samples <- sample(x = p_grid, size = 1e4, prob = posterior, replace = TRUE)
+# The default theme used by ggplot2
+ggplot2::theme_set(theme_minimal())
+ggplot2::theme_update(title = element_text(color = "midnightblue"))
 ```
+
 
 ## 3E1 {#prac3E1 .unnumbered}
 
-note: published solution on internet has 5 instead of 4! I verified the code several times.
+The samples used for the easy practices.
+
+```{r}
+easy_samples <- list()
+easy_samples <- within(easy_samples, {
+  p_grid <- seq(from = 0, to = 1, length.out = 1000)
+  prior <- rep(1, length(p_grid))
+  likelihood <- dbinom(x = 6, size = 9, prob = p_grid)
+  posterior <- likelihood * prior
+  posterior <- posterior / sum(posterior)
+  set.seed(100)
+  data <- sample(x = p_grid, size = 1e4, prob = posterior, replace = TRUE)
+})
+```
+
+
+::: {.callout-warning}
+Published solution on internet has 5 instead of 4!
+I verified the code several times.
+:::
 
 The nb of samples below 0.2 is
 
 ```{r}
 # nb of samples < 0.2
-nb <- sum(samples < 0.2)
+nb <- sum(easy_samples$data < 0.2)
 # the proportion
-prop <- nb / length(samples)
+prop <- nb / length(easy_samples$data)
 sprintf("%d samples representing %0.2f%%", nb, 100 * prop)
 ```
 
@@ -42,9 +59,9 @@ sprintf("%d samples representing %0.2f%%", nb, 100 * prop)
 
 ```{r}
 # nb of samples < 0.8
-nb <- sum(samples > 0.8)
+nb <- sum(easy_samples$data > 0.8)
 # the proportion
-prop <- nb / length(samples)
+prop <- nb / length(easy_samples$data)
 sprintf("%d samples representing %0.2f%%", nb, 100 * prop)
 ```
 
@@ -52,22 +69,22 @@ sprintf("%d samples representing %0.2f%%", nb, 100 * prop)
 
 ```{r}
 # nb of samples between 0.2 ad 0.8
-nb <- sum(0.2 <= samples & samples <= 0.8)
+nb <- sum(0.2 <= easy_samples$data & easy_samples$data <= 0.8)
 # the proportion
-prop <- nb / length(samples)
-sprintf("%d samples representing %0.2f%%", nb, 100 * prop)
+prop <- nb / length(easy_samples$data)
+sprintf("%d easy_samples$data representing %0.2f%%", nb, 100 * prop)
 ```
 
 ## 3E4 {#prac3E4 .unnumbered}
 
 ```{r}
-quantile(x = samples, probs = 0.2)
+quantile(x = easy_samples$data, probs = 0.2)
 ```
 
 ## 3E5 {#prac3E5 .unnumbered}
 
 ```{r}
-quantile(x = samples, probs = 1 - 0.2)
+quantile(x = easy_samples$data, probs = 1 - 0.2)
 ```
 
 ## 3E6 {#prac3E6 .unnumbered}
@@ -78,32 +95,32 @@ with `rethinking`
 
 ```{r}
 # with rethinking
-rethinking::HPDI(samples, prob = 0.66)
+rethinking::HPDI(easy_samples$data, prob = 0.66)
 ```
 
 and with `ggdist`, we get the mean as a bonus and in a dataframe format.
 
 ```{r}
 # with ggdist
-ggdist::mean_hdi(.data = samples, .width = 0.66)
+ggdist::mean_hdi(easy_samples$data, .width = 0.66)
 ```
 
 ## 3E7 {#prac3E7 .unnumbered}
 
-This is the usual quantile, symetric, interval.
+This is the usual quantile, symmetric, interval.
 
-with \`rethinking\`\`
+with `rethinking`
 
 ```{r}
 # with rethinking
-rethinking::PI(samples, prob = 0.66)
+rethinking::PI(easy_samples$data, prob = 0.66)
 ```
 
 with `ggdist`
 
 ```{r}
 # with ggdist
-ggdist::mean_qi(.data = samples, .width = 0.66)
+ggdist::mean_qi(easy_samples$data, .width = 0.66)
 ```
 
 ## 3M1 {#prac3M1 .unnumbered}
@@ -111,26 +128,28 @@ ggdist::mean_qi(.data = samples, .width = 0.66)
 Create the grid
 
 ```{r}
-n_success <- 8
-n_trials <- 15
-grid_size <- 1000
-df <- data.frame(
-    p_grid = seq(from = 0, to = 1, length.out = grid_size),
+sim03M01 <- list()
+sim03M01 <- within(sim03M01, {
+  n_success <- 8
+  n_trials <- 15
+  data <- data.frame(
+    p_grid = seq(from = 0, to = 1, length.out = 1000),
     prior = 1) %>%
     mutate(
      likelihood = dbinom(x = n_success, size = n_trials, prob = p_grid),
      posterior = (likelihood * prior) / sum(likelihood * prior)
     )
-stopifnot(near(sum(df$posterior), 1))
+  stopifnot(near(sum(data$posterior), 1))
+})
 ```
 
+
 ```{r}
-ggplot(data = df, mapping = aes(x = p_grid, y = posterior)) +
+ggplot(data = sim03M01$data, mapping = aes(x = p_grid, y = posterior)) +
     geom_point(size = 1, color = "palevioletred", alpha = 0.9) +
-    theme_minimal() +
     theme(legend.position = "none") +
     labs(title = "Practice 3M1",
-         subtitle = sprintf("Grid size = %d", nrow(df)),
+         subtitle = sprintf("Grid size = %d", nrow(sim03M01)),
          x = "grid values of probability of water", 
          y = "posterior probability simulated")
 ```
@@ -140,23 +159,24 @@ ggplot(data = df, mapping = aes(x = p_grid, y = posterior)) +
 Create the sampled data
 
 ```{r}
-n_samples <- 1e4
-set.seed(100)
-the_samples <- df %>%
-    slice_sample(n = n_samples, weight_by = posterior, replace = TRUE) %>%
-    mutate(id = seq_len(n_samples), .before = p_grid)
+set.seed(173)
+data03M02 <- sim03M01$data |>
+  slice_sample(n = 1e4, weight_by = posterior, replace = TRUE) |>
+  mutate(id = n()) |>
+  relocate(.before = p_grid)
 ```
 
 and find the HPDI
 
 ```{r}
 # HPDI with rethinking
-rethinking::HPDI(the_samples$p_grid, prob = 0.9)
+rethinking::HPDI(data03M02$p_grid, prob = 0.9)
 ```
 
 ```{r}
 # HPDI with ggdist
-ggdist::mean_hdi(.data = the_samples$p_grid, .width = 0.9)
+data03M02 |> 
+  ggdist::mean_hdi(p_grid, .width = 0.9)
 ```
 
 ## 3M3 {#prac3M3 .unnumbered}
@@ -164,34 +184,31 @@ ggdist::mean_hdi(.data = the_samples$p_grid, .width = 0.9)
 Constructing a posterior prediction by simulating $W$ with the sampled $p$. See the R code 3.26, p. 66.
 
 ```{r}
-# using the sampled p we sim
-post_pred <- rbinom(n = nrow(the_samples), size = n_trials, prob = the_samples$p_grid)
-the_samples <- data.frame(
-  the_samples,
-  predict = post_pred
-)
+# using the sampled p we simulate
+data03M03 <- data03M02 |>
+  mutate(predict = rbinom(n = n(), size = sim03M01$n_trials, prob = p_grid))
+# data03M03
 ```
 
 and using it to calculate the prob of having 8 $W$ in 15 trials
 
 ```{r}
-sum(post_pred == 8 ) / length(post_pred)
+sum(data03M03$predict == 8 ) / length(data03M03$predict)
 ```
 
 the histogram of the predictions is
 
 ```{r}
 colr <- paletteer::paletteer_d("Manu::Hoiho")
-ggplot(the_samples, aes(x=predict)) +
-  geom_histogram(aes(fill = ..count..)) +
+ggplot(data03M03, aes(x=predict)) +
+  geom_histogram(aes(fill = after_stat(count))) +
   scale_x_continuous(breaks = 0:15) +
   scale_fill_gradientn(colors = colr) +
-  theme_minimal() +
   theme(legend.position = "none",
         panel.grid.major.x = element_blank(),
         panel.grid.minor.x = element_blank()) +
   labs(title = "Practice 3M3",
-       subtitle = sprintf("Frequencies of %d predictions", nrow(the_samples)))
+       subtitle = sprintf("Frequencies of %d predictions", nrow(data03M03)))
 ```
 
 ## 3M4 {#prac3M4 .unnumbered}
@@ -199,7 +216,7 @@ ggplot(the_samples, aes(x=predict)) +
 Prob of 6 $W$ in 9 tosses with the post dist of 8 $W$ in 15 tosses. Same process as in 3M3.
 
 ```{r}
-post_pred <- rbinom(n = nrow(the_samples), size = 9, prob = the_samples$p_grid)
+post_pred <- rbinom(n = nrow(data03M03), size = 9, prob = data03M03$p_grid)
 sum(post_pred == 6 ) / length(post_pred)
 ```
 
@@ -208,27 +225,22 @@ sum(post_pred == 6 ) / length(post_pred)
 Create the grid
 
 ```{r}
-n_success <- 8
-n_trials <- 15
-grid_size <- 1000
-df <- data.frame(
-    p_grid = seq(from = 0, to = 1, length.out = grid_size),
-    prior = ifelse(p_grid < 0.5, 0, 1)) %>%
+grid03M05 <- data.frame(
+    p_grid = seq(from = 0, to = 1, length.out = 1000)) |>
     mutate(
-     likelihood = dbinom(x = n_success, size = n_trials, prob = p_grid),
-     posterior = (likelihood * prior) / sum(likelihood * prior)
-    )
-stopifnot(near(sum(df$posterior), 1))
+      prior = ifelse(p_grid < 0.5, 0, 1),
+      likelihood = dbinom(x = 8, size = 15, prob = p_grid),
+      posterior = (likelihood * prior) / sum(likelihood * prior))
+stopifnot(near(sum(grid03M05$posterior), 1))
 ```
 
 ```{r}
-ggplot(data = df, mapping = aes(x = p_grid, y = posterior)) +
+ggplot(data = grid03M05, mapping = aes(x = p_grid, y = posterior)) +
   geom_point(size = 1, color = "slateblue1", alpha = 0.9) +
   geom_line(color = "slateblue1") +
-  theme_minimal() +
   theme(legend.position = "none") +
   labs(title = "Practice 3M5",
-       subtitle = sprintf("Grid size = %d", nrow(df)),
+       subtitle = sprintf("Grid size = %d", nrow(grid03M05)),
        x = "grid values of probability of water", 
        y = "posterior probability simulated")
 ```
@@ -236,50 +248,46 @@ ggplot(data = df, mapping = aes(x = p_grid, y = posterior)) +
 Create the sampled data
 
 ```{r}
-n_samples <- 1e4
 set.seed(100)
-the_samples <- df %>%
-    slice_sample(n = n_samples, weight_by = posterior, replace = TRUE) %>%
-    mutate(id = seq_len(n_samples), .before = p_grid)
+data03M05 <- grid03M05 |>
+  slice_sample(n = 1e4, weight_by = posterior, replace = TRUE) %>%
+  mutate(id = n(), .before = p_grid)
 ```
 
 and find the HPDI
 
 ```{r}
 # HPDI with rethinking
-rethinking::HPDI(the_samples$p_grid, prob = 0.9)
+rethinking::HPDI(data03M05$p_grid, prob = 0.9)
 ```
 
 ```{r}
 # HPDI with ggdist
-ggdist::mean_hdi(.data = the_samples$p_grid, .width = 0.9)
+data03M05 |>
+  ggdist::mean_hdi(p_grid, .width = 0.9)
 ```
 
 Constructing a posterior prediction by simulating $W$ with the sampled $p$.
 
 ```{r}
 # using the sampled p we simulate the water
-post_pred <- rbinom(n = nrow(the_samples), size = n_trials, prob = the_samples$p_grid)
-the_samples <- data.frame(
-  the_samples,
-  predict = post_pred
-)
+data03M05 <- data03M05 |>
+  mutate(predict = rbinom(n = n(), size = 15, prob = p_grid))
 ```
 
 the histogram of the predictions is
 
 ```{r}
 colr <- paletteer::paletteer_d("Manu::Hoiho", direction = -1)
-ggplot(the_samples, aes(x=predict)) +
-  geom_histogram(aes(fill = ..count..)) +
+ggplot(data03M05, aes(x=predict)) +
+  geom_histogram(aes(fill = after_stat(count))) +
   scale_x_continuous(breaks = 0:15) +
   scale_fill_gradientn(colors = colr) +
-  theme_minimal() +
   theme(legend.position = "none",
         panel.grid.major.x = element_blank(),
         panel.grid.minor.x = element_blank()) +
   labs(title = "Practice 3M5",
-       subtitle = sprintf("Frequencies of %d predictions", nrow(the_samples)))
+       subtitle = sprintf("Frequencies of %d predictions", nrow(data03M05)))
 ```
 
 ## 3M6 {#prac3M6 .unnumbered}
@@ -297,7 +305,10 @@ the_grid$prior <- rep(1, times = nrow(the_grid))
 stopifnot(nrow(the_grid) == length(p_water) * length(n_tosses))
 ```
 
-and we compute the posterior probability of every $p_water$ in the grid, given $n_tosses$. Since we don't have $y$, that is the observed nb of successes, we simulate them, assuming $p=0.7$ with `rbinom(x = 1, size = the_grid$n_tosses, prob = 0.7)`.
+and we compute the posterior probability of every $p_water$ in the grid, 
+given $n_tosses$. Since we don't have $y$, that is the observed nb of successes, 
+we simulate them, assuming $p=0.7$ with
+`rbinom(x = 1, size = the_grid$n_tosses, prob = 0.7)`.
 
 ```{r}
 # compute the x, nb of success using rbinom()
@@ -332,7 +343,9 @@ and the final answer is given by finding the width of the 99% interval fro every
 (apply(X = msamples, MARGIN = 2, FUN = function(x) diff(rethinking::PI(x, prob = 0.99))))
 ```
 
-> The answer is therefore that the nb of tosses should \>= 2000, assuming a flat uniform prior, using increments of 500 for the nb of tosses.
+> The answer is therefore that the nb of tosses should >= 2000, assuming a flat 
+uniform prior, using increments of 500 for the nb 
+of tosses.
 
 ## 3H1 {#prac3H1 .unnumbered}
 
@@ -414,17 +427,16 @@ x_breaks <- ggdist::mean_qi(.data = pred$pred, .width = qtl) %>%
 set.seed(3)
 dist_binom <- data.frame(x = rbinom(n = length(samples), size = n_births, prob = p_boys))
 ggplot(pred, aes(x = pred)) +
-  stat_halfeye(aes(fill=stat(cut_cdf_qi(cdf, .width = qtl))),
+  stat_halfeye(aes(fill=after_stat(level)),
                point_interval = ggdist::mean_qi, .width = qtl) +
-  geom_density(data = dist_binom, mapping = aes(x, y = ..scaled..), color = "violetred", linetype = "dashed", size = 1) +
+  geom_density(data = dist_binom, mapping = aes(x, y = after_stat(scaled)), 
+               color = "violetred", linetype = "dashed", size = 1) +
   geom_vline(xintercept = c(mean(dist_binom$x), mean(pred$pred)), 
              color = c("violetred", "darkgreen"), linetype = c("dashed", "solid")) +
   scale_x_continuous(breaks = x_breaks,limits = rng) +
   scale_fill_paletteer_d(palette = "Manu::Takahe", direction = -1,
                          na.translate = FALSE) +
-  theme_ggdist() +
-  theme(legend.position = c(0.1,0.75),
-        legend.title = element_text(color = "navy")) +
+  theme(legend.position = c(0.1,0.75)) +
   labs(title = "Practice 3H3", x = "nb of boys", y = "probability", fill = "quantiles")
 ```
 
@@ -479,11 +491,11 @@ set.seed(3)
 dist_binom <- data.frame(x = rbinom(n = length(samples), size = n_births, prob = p_boys))
 ggplot(pred, aes(x = pred)) +
   stat_halfeye(point_interval = ggdist::mean_hdi, .width = 0.89, fill = "rosybrown1") +
-  geom_density(data = dist_binom, mapping = aes(x, y = ..scaled..), color = "navy", linetype = "dashed") +
+  geom_density(data = dist_binom, mapping = aes(x, y = after_stat(scaled)), 
+               color = "navy", linetype = "dashed") +
   geom_vline(xintercept = c(mean(dist_binom$x), mean(pred$pred)), 
              color = c("navy", "rosybrown4"), linetype = c("dashed", "solid")) +
   scale_x_continuous(limits = rng) +
-  theme_minimal() +
   labs(title = "Practice 3H4", x = "nb of boys", y = "probability")
 ```
 
@@ -511,7 +523,8 @@ df <- data.frame(
 stopifnot(sum(df$posterior) == 1)
 ```
 
-Get a sample of $p$ from the grid using the posterior as probability of the given value. Then make a prediciton of boys using these sampled $p$ values
+Get a sample of $p$ from the grid using the posterior as probability of the 
+given value. Then make a predicition of boys using these sampled $p$ values
 
 ```{r}
 # sample the grid using the posterior probabilities
@@ -534,11 +547,11 @@ set.seed(3)
 dist_binom <- data.frame(x = rbinom(n = length(samples), size = n_births, prob = p_girlboy))
 ggplot(pred, aes(x = pred)) +
   stat_halfeye(point_interval = ggdist::mean_hdi, .width = 0.89, fill = "peachpuff") +
-  geom_density(data = dist_binom, mapping = aes(x, y = ..scaled..), color = "slateblue4", linetype = "dashed") +
+  geom_density(data = dist_binom, mapping = aes(x, y = after_stat(scaled)), 
+               color = "slateblue4", linetype = "dashed") +
   geom_vline(xintercept = c(mean(dist_binom$x), mean(pred$pred)), 
              color = c("slateblue4", "peachpuff4"), linetype = c("dashed", "solid")) +
   scale_x_continuous(limits = rng) +
-  theme_minimal() +
   labs(title = "Practice 3H5", x = "nb of boys", y = "probability")
 ```
 

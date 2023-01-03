@@ -136,9 +136,10 @@ sim04M01 <- within(sim04M01, {
 
 ```{r}
 ggplot(sim04M01$data, mapping = aes(x = height)) +
-  ggdist::stat_halfeye(aes(fill = after_stat(cut_cdf_qi(cdf, .width = sim04M01$widths))),
+  ggdist::stat_halfeye(aes(fill = after_stat(level)),
                        point_interval = median_qi,
-                       color = "darkorange") +
+                       color = "darkorange",
+                       .width = c(0.67, 0.95, 1)) +
   scale_x_continuous(breaks = sim04M01$breaks_x,
                      labels = scales::label_number(accuracy = 0.1)) +
   scale_fill_paletteer_d("ggsci::indigo_material",
@@ -232,7 +233,7 @@ See section 4.4.2 for model m4.3. We add the centered weight to the data and cal
 ```{r}
 data(Howell1)
 data04M07 <- Howell1 |>
-  filter(age  >= 18) |>
+  filter(age >= 18) |>
   mutate(weight_c = as.vector(scale(weight, center = TRUE, scale = FALSE)))
 rm(Howell1)
 skimr::skim(data04M07)
@@ -429,39 +430,26 @@ pred04M07 <- list()
 pred04M07 <- within(pred04M07, {
   ndraws<- 500L
   
-  quap_ctr <- list()
-  quap_ctr$newdata <- data.frame(
-    weight_c = seq_range(data04M07$weight_c, n = 30L))
-  quap_ctr$draws <- predicted_draws(
-    fit04M07$quap_ctr,
-    newdata = quap_ctr$newdata,
-    ndraws = ndraws)
-  # get the intervals
-  quap_ctr$intrvl <- median_qi(quap_ctr$draws) |>
-  # put weight on natural scale to enable comparisons
+  quap_ctr <- data.frame(
+    weight_c = seq_range(data04M07$weight_c, n = 30L)) |>
+    add_predicted_draws(fit04M07$quap_ctr, ndraws = ndraws) |>
+    median_qi() |>
+    # put weight on natural scale to enable comparisons
     mutate(weight = weight_c + mean(data04M07$weight))
   
-  quap_nat <- list()
-  quap_nat$newdata <- data.frame(
-    weight = seq_range(data04M07$weight, n = 30L))
-  quap_nat$draws <- predicted_draws(
-    fit04M07$quap_nat, 
-    newdata = quap_nat$newdata, 
-    ndraws = ndraws)
-  # get the intervals
-  quap_nat$intrvl <- median_qi(quap_nat$draws)
+  quap_nat <- data.frame(
+    weight = seq_range(data04M07$weight, n = 30L)) |>
+    add_predicted_draws(fit04M07$quap_nat, ndraws = ndraws) |>
+    median_qi()
   
-  # put all intervals together
-  quap_all <- list()
-  quap_all$intrvl <- bind_rows(
-    "ctr"= quap_ctr$intrvl, "nat" = quap_nat$intrvl, .id = "model")
+  quap_all <- bind_rows("ctr"= quap_ctr, "nat" = quap_nat, .id = "model")
   })
 ```
 
 and the plot is
 
 ```{r}
-ggplot(pred04M07$quap_all$intrvl, 
+ggplot(pred04M07$quap_all, 
        aes(x = weight, y = .prediction, ymin = .lower, ymax = .upper,
            color = model)) +
   geom_pointinterval(position = position_dodge(width = 0.5),
@@ -470,7 +458,8 @@ ggplot(pred04M07$quap_all$intrvl,
   theme(legend.position = "bottom",
         panel.grid.major.y = element_line()) +
   labs(title = "Centered vs Natural Predictions",
-       subtitle = "4M7 using quap")
+       subtitle = "4M7 using quap",
+       y = "predicted height")
 ```
 
 ### Using `brm` {.unnumbered}
@@ -574,39 +563,27 @@ And, again, we can use the exact same command using `tidybayes` with `brms` as w
 ```{r}
 # the predictions for the centered model
 pred04M07 <- within(pred04M07, {
-  brm_ctr <- list()
-  brm_ctr$newdata <- data.frame(
-    weight_c = seq_range(data04M07$weight_c, n = 30L))
-  brm_ctr$draws <- predicted_draws(
-    fit04M07$brm_ctr,
-    newdata = brm_ctr$newdata,
-    ndraws = ndraws)
-  # get the intervals
-  brm_ctr$intrvl <- median_qi(brm_ctr$draws) |>
-  # put weight on natural scale to enable comparisons
+  brm_ctr <- data.frame(
+    weight_c = seq_range(data04M07$weight_c, n = 30L)) |>
+    add_predicted_draws(fit04M07$brm_ctr, ndraws = ndraws) |>
+    median_qi() |>
+    # put weight on natural scale to enable comparisons
     mutate(weight = weight_c + mean(data04M07$weight))
   
-  brm_nat <- list()
-  brm_nat$newdata <- data.frame(
-    weight = seq_range(data04M07$weight, n = 30L))
-  brm_nat$draws <- predicted_draws(
-    fit04M07$brm_nat, 
-    newdata = brm_nat$newdata, 
-    ndraws = ndraws)
-  # get the intervals
-  brm_nat$intrvl <- median_qi(brm_nat$draws)
+  brm_nat <- data.frame(
+    weight = seq_range(data04M07$weight, n = 30L)) |>
+    add_predicted_draws(fit04M07$brm_nat, ndraws = ndraws) |>
+    median_qi()
   
   # put all intervals together
-  brm_all<- list()
-  brm_all$intrvl <- bind_rows(
-    "ctr"= brm_ctr$intrvl, "nat" = brm_nat$intrvl, .id = "model")
+  brm_all <- bind_rows("ctr"= brm_ctr, "nat" = brm_nat, .id = "model")
   })
 ```
 
 and the plot
 
 ```{r}
-ggplot(pred04M07$brm_all$intrvl, 
+ggplot(pred04M07$brm_all, 
        aes(x = weight, y = .prediction, ymin = .lower, ymax = .upper,
            color = model)) +
   geom_pointinterval(position = position_dodge(width = 0.5),
@@ -1025,18 +1002,22 @@ Find the predictions using the detailed method as described in overthinking box 
 ```{r}
 pred04H01 <- list()
 pred04H01 <- within(pred04H01, {
+  # set the weights
   weights <- c(46.95, 43.72, 64.78, 32.59, 54.63)
+  # name the weights
   names(weights) <- paste0("ind", seq_along(weights))
+  # create the newdata
   newdata <- data.frame("weight" = weights,
                         row.names = names(weights))
   
+  # simulate for each weight
   sim <- sapply(X = newdata$weight, FUN = function(x) {
     set.seed(173)  # for fun: balanced prime number
     mu <- post04H01$a + post04H01$b * x
     rnorm(n = length(mu), mean = mu, sd = post04H01$sigma)
     })
   
-  # get the confidence intervals
+  # get the confidence intervals for each weight
   intrvl <- apply(X = sim, MARGIN = 2, FUN = ggdist::mean_hdi, .width = 0.89)
   intrvl <- do.call(rbind, intrvl) |>
     data.frame(row.names = names(weights))
@@ -1154,7 +1135,7 @@ See section 4.4.3.4 for more details.
 ```{r ch04_lpred04H02_quap}
 lpred04H02 <- list()
 lpred04H02 <- within(lpred04H02, {
-  ndraws <- 1000L
+  ndraws <- 200L
   weights <- modelr::seq_range(data04H02$weight, n = 30L)
   newdata <- data.frame(weight = weights)
   
@@ -1178,7 +1159,7 @@ and the prediction intervals are obtained as described in section 4.4.3.5 using 
 ```{r}
 pred04H02 <- list()
 pred04H02 <- within(pred04H02, {
-  ndraws <- 1000L
+  ndraws <- 200L
   weights <- modelr::seq_range(data04H02$weight, n = 30L)
   newdata <- data.frame(weight = weights)
   
@@ -1547,7 +1528,7 @@ The function `rethinking::extract.prior()` is used to sample the prior distribut
 ```{r ch04_prior04H04_quap}
 prior04H04 <- list()
 prior04H04 <- within(prior04H04,{
-  ndraws <-1000L
+  ndraws <- 500L
   quap <- list()
   quap$draws <- extract.prior(fit04H04$quap, n = ndraws) |>
     as.data.frame() |>
@@ -1626,6 +1607,7 @@ prior04H04 <- within(prior04H04,{
   })
 # glimpse(prior04H04$brm$draws)
 ```
+
 
 ```{r}
 prior04H04 <- within(prior04H04, {
@@ -1744,7 +1726,7 @@ and the fitted values with their interval
 ```{r ch04_lpred04H05_quap}
 lpred04H05 <- list()
 lpred04H05 <- within(lpred04H05, {
-  ndraws <- 1000L
+  ndraws <- 500L
   
   quap <- list()
   # See the overthinking box in section 4.4.3.4 to explain `rethinking::link()'
